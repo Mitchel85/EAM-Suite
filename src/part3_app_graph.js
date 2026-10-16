@@ -1810,6 +1810,7 @@ function updateSemNote() {
   var n = el('semnote');
   if (!n) return;
   if (!SEM_MODE) {
+    n.className = 'semnote';
     n.innerHTML = 'Die Architekturen werden nur <b>gegenübergestellt</b>: keine Elemente werden zusammengelegt, auch nicht bei identischem Namen. Verbindungen über die Architekturgrenze bleiben dadurch unsichtbar.';
     return;
   }
@@ -1818,14 +1819,42 @@ function updateSemNote() {
   if (P.guid) aktiv.push('GUID');
   if (P.name) aktiv.push('Name');
   if (P.alias) aktiv.push('Alias');
-  n.innerHTML = aktiv.length
-    ? 'Aktive Kriterien: <b>' + esc(aktiv.join(' und ')) + '</b>. Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen. Beim Laden sehen Sie vorab, wie viele Elemente zusammengelegt würden, und können einzeln abwählen.'
-    : 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+  if (!aktiv.length) {
+    n.className = 'semnote';
+    n.innerHTML = 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+    return;
+  }
+  /* Warnung: GUID ist empfohlen, alle anderen gelten als experimentell */
+  var exp = [];
+  if (P.name) exp.push('Name');
+  if (P.alias) exp.push('Alias');
+  var warn = '';
+  if (exp.length) {
+    n.className = 'semnote warn';
+    warn = ' ⚠ <b>Achtung:</b> Die Kriterien ' + esc(exp.join(' und ')) + ' gelten als <b>experimentell</b>. '
+      + 'Je mehr Kriterien aktiv sind, desto <b>instabiler</b> wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie <b>abstürzt</b>.';
+  } else {
+    n.className = 'semnote';
+    warn = ' <span class="ok">✅ Das ist die empfohlene und stabilste Einstellung.</span>';
+  }
+  n.innerHTML = 'Aktiv: <b>' + esc(aktiv.join(' und ')) + '</b>. Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen.' + warn;
 }
 
 /* Vorschläge mit den aktuellen Kriterien neu bestimmen (ohne etwas zusammenzulegen) */
 function rebuildMergeCands() {
   if (!MULTI_MODE) return;
+  /* Nur neu rechnen, wenn noch Elemente mit Modell-Präfix vorhanden sind.
+     Nach einer abgeschlossenen Fusion sind die Elemente in den Trägerknoten
+     übergegangen und es gibt nichts mehr zu erkennen. */
+  var nochOffen = false, k;
+  for (k in OBJS) {
+    if (!OBJS.hasOwnProperty(k)) continue;
+    if (Number(OBJS[k].m) > 1) { nochOffen = true; break; }
+  }
+  if (!nochOffen) {
+    renderMergeBar();
+    return;
+  }
   MERGE_CANDS = [];
   for (var n = 2; n <= MODEL_N; n++) {
     finalizeMerge(n);

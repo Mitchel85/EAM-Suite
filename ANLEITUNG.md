@@ -1,4 +1,4 @@
-# ADMBw QEA Editor — Kurzanleitung
+# Architektur Mate — Kurzanleitung (Ihr Architekturgehilfe)
 
 **Ein Satz:** QEA-Architektur(en) im Browser öffnen, verstehen, ändern — und als **neue** Datei speichern. Ohne Installation, alles bleibt lokal.
 
@@ -7,7 +7,7 @@
 ## In 5 Minuten
 
 ### 1 · Öffnen
-`dist/ADMBw_QEA_Editor.html` herunterladen, per Doppelklick im Browser öffnen (Edge / Chrome / Firefox).
+`dist/Architektur_Mate.html` herunterladen, per Doppelklick im Browser öffnen (Edge / Chrome / Firefox).
 
 ### 2 · Laden
 - **Eine Datei:** Button **„📄 Eine Architektur laden"**
@@ -20,11 +20,11 @@ Ankreuzen, wonach gleiche Elemente erkannt werden:
 
 | ☑ | Kriterium | Bedeutung |
 |---|---|---|
-| ☑ | **Über GUID** | gleiche Kennung (URI/UUID) |
-| ☑ | **Über den Namen** | gleiche Bezeichnung |
-| ☐ | **Über den Alias** | gleicher Alternativname |
+| ☑ | **Über GUID** | gleiche Kennung (URI/UUID) — **empfohlen** |
+| ☐ | **Über den Namen** | gleiche Bezeichnung — *experimentell* |
+| ☐ | **Über den Alias** | gleicher Alternativname — *experimentell* |
 
-Kästchen einzeln an/aus — beliebig kombinieren. Danach erscheint ein **Prüf-Dialog**: jede Überschneidung einzeln sichtbar, Häkchen rausnehmen, wenn etwas eigenständig bleiben soll. Dann **„✔ Ausgewählte zusammenlegen"**.
+Kästchen einzeln an/aus — beliebig kombinieren. **Standard ist nur „Über GUID".** ⚠️ **Achtung:** Je mehr Kriterien Sie ankreuzen, desto **instabiler** wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie **abstürzt**. Die anderen beiden Kriterien gelten als **experimentell**. Danach erscheint ein **Prüf-Dialog**: jede Überschneidung einzeln sichtbar, Häkchen rausnehmen, wenn etwas eigenständig bleiben soll. Dann **„✔ Ausgewählte zusammenlegen"**.
 
 ### 4 · Ansehen
 - Links: Baum mit **Paketen & Sichten**

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>ADMBw QEA Editor — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
+<title>Architektur Mate — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
 <style>
   :root {
     --bw-blue:#004471; --bw-dark:#0A2E4D; --bw-mid:#5A7184; --bw-light:#C6D6DE;
@@ -45,9 +45,13 @@
   .semopt { display:flex; gap:7px; align-items:flex-start; font-size:12px; padding:4px 6px; border-radius:6px; cursor:pointer; }
   .semopt:hover { background:#F2F7FA; }
   .semopt input { margin:2px 0 0; cursor:pointer; }
+  .semopt.experimental { opacity:.92; }
+  .exp-tag { display:inline-block; font-size:9.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#9A3412; background:#FFEDD5; border:1px solid #FED7AA; border-radius:7px; padding:1px 6px; margin-left:5px; vertical-align:middle; }
+  .semnote { margin-top:9px; padding:8px 11px; background:#F1F5F9; border:1px solid var(--border); border-radius:8px; font-size:11.5px; color:#1A1A1A; line-height:1.55; }
+  .semnote.warn { background:#FFF7ED; border-color:#FED7AA; color:#7C2D12; }
+  .semnote .ok { color:#15803D; font-weight:700; }
   .semopt b { display:block; font-weight:700; color:#1A1A1A; }
   .semopt em { font-style:normal; color:var(--bw-mid); font-size:11px; }
-  .semnote { font-size:11.5px; color:var(--bw-mid); margin-top:8px; padding-top:7px; border-top:1px dashed var(--border); }
   .semnote b { color:var(--bw-blue); }
   /* Kontrollkästchen um ein Element (wenn „nicht zusammenführen“ es zulässt) */
   .keepbox { position:absolute; left:2px; top:2px; z-index:5; }
@@ -446,7 +450,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>✏️ ADMBw QEA Editor <span class="badge-v">v7.1 · Multi-Architektur · GUID + Name Matching</span></h1>
+      <h1>🤝 Architektur Mate <span class="badge-v">v8.0 · Ihr Architekturgehilfe · Multi-Architektur</span></h1>
       <p>QEA-Architekturen verstehen <b>und bearbeiten</b>: Pakete &amp; Sichten erkunden, im Graphen analysieren, Verbindungen nachweisen, Elemente/Pakete/Sichten/Beziehungen ändern und als neue .qea speichern — 100&nbsp;% lokal im Browser, ohne KI.</p>
     </div>
   </div>
@@ -473,11 +477,11 @@
         </div>
         <div class="semopts" id="semopts">
           <label class="semopt"><input type="checkbox" id="semchk" checked onchange="setSemMode(this.checked)"> <span><b>Semantik einbeziehen</b> <em>Elemente werden als gleichartig erkannt</em></span></label>
-          <label class="semopt"><input type="checkbox" id="semmatch-guid" checked onchange="setMatchPrinciple('guid', this.checked)"> <span><b>Über GUID</b> <em>zusammenlegen über die eindeutige Identität (URI/UUID)</em></span></label>
-          <label class="semopt"><input type="checkbox" id="semmatch-name" checked onchange="setMatchPrinciple('name', this.checked)"> <span><b>Über den Namen</b> <em>zusammenlegen über die Bezeichnung</em></span></label>
-          <label class="semopt"><input type="checkbox" id="semmatch-alias" onchange="setMatchPrinciple('alias', this.checked)"> <span><b>Über den Alias</b> <em>Alternativnamen mit einbeziehen</em></span></label>
+          <label class="semopt"><input type="checkbox" id="semmatch-guid" checked onchange="setMatchPrinciple('guid', this.checked)"> <span><b>Über GUID</b> <em>zusammenlegen über die eindeutige Identität (URI/UUID) — empfohlen</em></span></label>
+          <label class="semopt experimental"><input type="checkbox" id="semmatch-name" onchange="setMatchPrinciple('name', this.checked)"> <span><b>Über den Namen</b> <em>zusammenlegen über die Bezeichnung</em> <span class="exp-tag">experimentell</span></span></label>
+          <label class="semopt experimental"><input type="checkbox" id="semmatch-alias" onchange="setMatchPrinciple('alias', this.checked)"> <span><b>Über den Alias</b> <em>Alternativnamen mit einbeziehen</em> <span class="exp-tag">experimentell</span></span></label>
         </div>
-        <div class="semnote" id="semnote">Aktive Kriterien: <b>GUID</b> und <b>Name</b>. Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen.</div>
+        <div class="semnote warn" id="semnote">⚠ <b>Achtung:</b> „Über GUID" ist die <b>empfohlene</b> und stabilste Einstellung. Je mehr Kriterien Sie zusätzlich ankreuzen, desto <b>instabiler</b> wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie <b>abstürzt</b>. Die Kriterien „Über den Namen" und „Über den Alias" gelten als <b>experimentell</b>. Aktiv: <b>Über GUID</b>.</div>
       </div>
 
       <div class="up-hint" id="uphint">Mehrere Dateien werden zu <b>einer Landkarte</b> verschmolzen: erkannte Elemente teilen sich einen Knoten — dadurch werden <b>modellübergreifende Zusammenhänge</b> sichtbar.</div>
@@ -591,7 +595,7 @@
   </div>
 </main>
 <footer>
-  ADMBw QEA Editor v7.1 (Edit-Edition, Testversion) ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
+  <b>Architektur Mate v8.0</b> · Ihr Architekturgehilfe ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
@@ -1968,7 +1972,7 @@ function connKey(raw) { return keyFor('c', raw, MODEL_N); }
    ausgeschaltet werden — allein oder kombiniert.
    ================================================================ */
 var SEM_MODE = true;                 /* „Semantik einbeziehen" (Kontrollkästchen) */
-var MATCH_PRINCIPLE = { guid: true, name: true, alias: false };  /* aktive Kriterien */
+var MATCH_PRINCIPLE = { guid: true, name: false, alias: false };  /* aktive Kriterien: Standard = nur GUID */
 
 /* Text normalisieren: Akzente/Umlaute auflösen, Sonderzeichen zu Leerzeichen */
 function semNorm(s) {
@@ -5361,6 +5365,7 @@ function updateSemNote() {
   var n = el('semnote');
   if (!n) return;
   if (!SEM_MODE) {
+    n.className = 'semnote';
     n.innerHTML = 'Die Architekturen werden nur <b>gegenübergestellt</b>: keine Elemente werden zusammengelegt, auch nicht bei identischem Namen. Verbindungen über die Architekturgrenze bleiben dadurch unsichtbar.';
     return;
   }
@@ -5369,14 +5374,42 @@ function updateSemNote() {
   if (P.guid) aktiv.push('GUID');
   if (P.name) aktiv.push('Name');
   if (P.alias) aktiv.push('Alias');
-  n.innerHTML = aktiv.length
-    ? 'Aktive Kriterien: <b>' + esc(aktiv.join(' und ')) + '</b>. Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen. Beim Laden sehen Sie vorab, wie viele Elemente zusammengelegt würden, und können einzeln abwählen.'
-    : 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+  if (!aktiv.length) {
+    n.className = 'semnote';
+    n.innerHTML = 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+    return;
+  }
+  /* Warnung: GUID ist empfohlen, alle anderen gelten als experimentell */
+  var exp = [];
+  if (P.name) exp.push('Name');
+  if (P.alias) exp.push('Alias');
+  var warn = '';
+  if (exp.length) {
+    n.className = 'semnote warn';
+    warn = ' ⚠ <b>Achtung:</b> Die Kriterien ' + esc(exp.join(' und ')) + ' gelten als <b>experimentell</b>. '
+      + 'Je mehr Kriterien aktiv sind, desto <b>instabiler</b> wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie <b>abstürzt</b>.';
+  } else {
+    n.className = 'semnote';
+    warn = ' <span class="ok">✅ Das ist die empfohlene und stabilste Einstellung.</span>';
+  }
+  n.innerHTML = 'Aktiv: <b>' + esc(aktiv.join(' und ')) + '</b>. Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen.' + warn;
 }
 
 /* Vorschläge mit den aktuellen Kriterien neu bestimmen (ohne etwas zusammenzulegen) */
 function rebuildMergeCands() {
   if (!MULTI_MODE) return;
+  /* Nur neu rechnen, wenn noch Elemente mit Modell-Präfix vorhanden sind.
+     Nach einer abgeschlossenen Fusion sind die Elemente in den Trägerknoten
+     übergegangen und es gibt nichts mehr zu erkennen. */
+  var nochOffen = false, k;
+  for (k in OBJS) {
+    if (!OBJS.hasOwnProperty(k)) continue;
+    if (Number(OBJS[k].m) > 1) { nochOffen = true; break; }
+  }
+  if (!nochOffen) {
+    renderMergeBar();
+    return;
+  }
   MERGE_CANDS = [];
   for (var n = 2; n <= MODEL_N; n++) {
     finalizeMerge(n);
@@ -5812,9 +5845,14 @@ function pathFind() {
     res.innerHTML = '<div class="pnote">⚠ Bitte erst <b>Start- und Ziel-Element</b> wählen (Suchfelder links).</div>';
     return;
   }
-  /* Platzhalter entschlüsseln: Im Einzelmodell entspricht die Kennung dem Modell,
-     im Mehrfach-Modus wird der lokale Teil für die Verbindungssuche verwendet. */
-  if (MULTI_MODE) { PATH_ADJ = buildAdjacency(); PATH_COMP = null; }
+  /* Adjazenz aufbauen — IMMER, nicht nur im Mehrfach-Modus.
+     Nach jeder Fusion/Ladung wurde PATH_ADJ auf null gesetzt, dadurch lief der
+     Aufruf hier sonst ins Leere (PATH_ADJ is null). */
+  if (!PATH_ADJ) PATH_ADJ = buildAdjacency();
+  PATH_COMP = null;
+  /* Mehrfach-Modus: zusätzlich jedes Mal frisch rechnen, weil die Fusion die
+     IDs neu verteilt (gekappte Beziehungen landen auf den Trägerknoten). */
+  if (MULTI_MODE) PATH_ADJ = buildAdjacency();
   var gStart = decodeNodeId(PATH.start), gEnd = decodeNodeId(PATH.end);
   var s = OBJS[PATH.start], e = OBJS[PATH.end];
   var out = { s: s, e: e, mode: PATH.mode, directed: PATH.directed, maxHops: PATH.maxHops, none: false, gs: gStart, ge: gEnd };
@@ -5838,11 +5876,13 @@ function pathFind() {
   pathRenderResults();
 }
 
-/* Kennungen für die Verbindungssuche im Modell auflösen */
+/* Kennungen für die Verbindungssuche im Modell auflösen.
+   Die Adjazenz baut buildAdjacency() über die GLOBAL-Kennungen auf
+   (m2_o145 im Mehrfach-Modus, Original-ID im Einzel-Modus).
+   Der Pfad-Start und das Pfad-Ziel werden deshalb mit der globalen ID
+   aufgeschlagen — ein Umweg über die lokale ID würde ins Leere laufen. */
 function decodeNodeId(x) {
-  if (!MULTI_MODE) return x;
-  var g = groupOf(x);
-  return (g && g.l != null) ? String(g.l) : String(x);
+  return String(x);
 }
 
 function pathRenderResults() {
@@ -6295,6 +6335,9 @@ var EDIT = (function () {
     if (!MULTI_MODE) return String(x);
     return groupOf(x).l;
   }
+  /* groupOf muss auch aus part4 (Verbindungsanalyse) erreichbar sein */
+  window.groupOf = groupOf;
+  window.normalizeToLocal = normalizeToLocal;
   /* Ausgabe-Zuordnung nach dem Verschmelzen neu aufbauen */
   function rebase() { }
 

@@ -115,6 +115,9 @@ var EDIT = (function () {
     if (!MULTI_MODE) return String(x);
     return groupOf(x).l;
   }
+  /* groupOf muss auch aus part4 (Verbindungsanalyse) erreichbar sein */
+  window.groupOf = groupOf;
+  window.normalizeToLocal = normalizeToLocal;
   /* Ausgabe-Zuordnung nach dem Verschmelzen neu aufbauen */
   function rebase() { }
 

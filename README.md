@@ -1,4 +1,4 @@
-# ADMBw QEA Editor
+# Architektur Mate
 
 **Sparx-EA-Architekturen im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
 
@@ -16,7 +16,7 @@ Ab **v6.0** zusätzlich: **mehrere Architekturen gleichzeitig laden** und zu ein
 ## Einfache Anleitung
 
 ### 1 · Öffnen
-Lade `dist/ADMBw_QEA_Editor.html` herunter (Button *Raw* → *Datei speichern*) und öffne sie per **Doppelklick** im Browser (aktueller Edge, Chrome oder Firefox). Keine Installation, kein Server, kein Netz nötig.
+Lade `dist/Architektur_Mate.html` herunter (Button *Raw* → *Datei speichern*) und öffne sie per **Doppelklick** im Browser (aktueller Edge, Chrome oder Firefox). Keine Installation, kein Server, kein Netz nötig.
 
 ### 2 · Laden
 Im Startbereich zwei Möglichkeiten:
@@ -38,7 +38,9 @@ Vor dem Laden stellst du ein, **wie** Elemente aus den verschiedenen Architektur
 | ☑ **Über den Namen** | gleiche Bezeichnung |
 | ☐ **Über den Alias** | gleicher Alternativname |
 
-Jedes Kriterium ist **einzeln an- und abwählbar** — allein oder kombiniert. Ein Element wird zusammengelegt, sobald es in einem der aktivierten Merkmale übereinstimmt. Standardmäßig sind **GUID** und **Name** aktiv.
+Jedes Kriterium ist **einzeln an- und abwählbar** — allein oder kombiniert. Ein Element wird zusammengelegt, sobald es in einem der aktivierten Merkmale übereinstimmt. Standardmäßig ist nur **GUID** aktiv, weil es die **stabilste** Erkennung ist.
+
+> ⚠️ **Achtung:** Je mehr Kriterien Sie zusätzlich ankreuzen, desto **instabiler** wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie **abstürzt**. „Über den Namen" und „Über den Alias" gelten als **experimentell**.
 
 Nach dem Laden findest du dieselben Kontrollkästchen **in der Leiste unter dem Startbereich** — dort kannst du sie jederzeit umschalten, ohne neu zu laden.
 
@@ -111,8 +113,8 @@ Die vollständige Analyse-Funktionalität des [ADMBw QEA Analyzers](https://gith
 
 | Datei | Verwendung |
 |---|---|
-| `dist/ADMBw_QEA_Editor.html` | Lokale Nutzung (Doppelklick) oder SharePoint-Dokumentbibliothek |
-| `dist/ADMBw_QEA_Editor.aspx` | SharePoint-/IIS-Bibliothek (beginnt direkt mit `<!DOCTYPE html>`) |
+| `dist/Architektur_Mate.html` | Lokale Nutzung (Doppelklick) oder SharePoint-Dokumentbibliothek |
+| `dist/Architektur_Mate.aspx` | SharePoint-/IIS-Bibliothek (beginnt direkt mit `<!DOCTYPE html>`) |
 
 **Wichtig:** Die ASPX-Datei beginnt **direkt mit `<!DOCTYPE html>`** — es wird **keine** `<%@ Page … %>`-Direktive vorangestellt. Beide Dateien sind **UTF-8 mit BOM** und enthalten keine `<%`-Sequenzen. Details: [docs/SharePoint-Deployment.md](docs/SharePoint-Deployment.md)
 
@@ -161,10 +163,12 @@ Musterarchitektur **MASC** (12,4 MB; 225 Pakete, 265 Sichten, 1.652 Elemente, 1.
 
 * **Multi-Modus:** 2 Dateien verschmolzen → 374 Pakete, 342 Sichten, 1.931 Elemente, 2.167 Beziehungen, **56 Beziehungen über die Modellgrenze**
 * **Kriterien** (MASC + Testarchitektur): Nur GUID = **206** Treffer · Nur Name = **293** · Beide zusammen = **293** · Nichts aktiv = **0**
+* **Verbindungsanalyse** (Einzel & Cross-Model): Pfade in beiden Modi gefunden — auch über die Modellgrenze (19/19 grün)
+* **Vorauswahl:** nur „Über GUID" aktiv; „Über den Namen" und „Über den Alias" sind als **experimentell** markiert, mit Warnhinweis zur Absturzgefahr
 * **Edit & Speichern** je Quelldatei getrennt — alle Struktur- und Integritätsprüfungen grün
 * **10 Änderungsarten** (Umbenennen, Stereotype, Notizen, Tags, Anlegen, Löschen inkl. Kaskaden) — alle Prüfungen grün
 * Speichern inkl. Integritätsprüfung: **~3 Sekunden**
-* Automatisierte End-zu-Ende-Tests (Bedienung, Fusion, Kriterien, Speichern): **23/23 grün**
+* Automatisierte End-zu-Ende-Tests (Bedienung, Fusion, Kriterien, Pfade, Speichern): **19/19 grün**
 
 Testmodell: `https://github.com/Mitchel85/eam-qea-tool` → `Demo-Output/Musterarchitektur_MASC.qea`
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Baut ADMBw_QEA_Editor.html und .aspx (v5.0 Edit-Edition, Standalone-Repo).
+"""Baut Architektur_Mate.html und .aspx (v8.0, Standalone-Repo).
 
 Aufbau der Einzeldatei:
   part1_head_body.html
@@ -24,7 +24,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(REPO, "src")
 DIST = os.path.join(REPO, "dist")
 VEND = os.path.join(REPO, "vendor")
-NAME = "ADMBw_QEA_Editor"
+NAME = "Architektur_Mate"
 
 
 def rd(*parts):

@@ -698,7 +698,7 @@ function connKey(raw) { return keyFor('c', raw, MODEL_N); }
    ausgeschaltet werden — allein oder kombiniert.
    ================================================================ */
 var SEM_MODE = true;                 /* „Semantik einbeziehen" (Kontrollkästchen) */
-var MATCH_PRINCIPLE = { guid: true, name: true, alias: false };  /* aktive Kriterien */
+var MATCH_PRINCIPLE = { guid: true, name: false, alias: false };  /* aktive Kriterien: Standard = nur GUID */
 
 /* Text normalisieren: Akzente/Umlaute auflösen, Sonderzeichen zu Leerzeichen */
 function semNorm(s) {

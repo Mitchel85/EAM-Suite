@@ -350,9 +350,14 @@ function pathFind() {
     res.innerHTML = '<div class="pnote">⚠ Bitte erst <b>Start- und Ziel-Element</b> wählen (Suchfelder links).</div>';
     return;
   }
-  /* Platzhalter entschlüsseln: Im Einzelmodell entspricht die Kennung dem Modell,
-     im Mehrfach-Modus wird der lokale Teil für die Verbindungssuche verwendet. */
-  if (MULTI_MODE) { PATH_ADJ = buildAdjacency(); PATH_COMP = null; }
+  /* Adjazenz aufbauen — IMMER, nicht nur im Mehrfach-Modus.
+     Nach jeder Fusion/Ladung wurde PATH_ADJ auf null gesetzt, dadurch lief der
+     Aufruf hier sonst ins Leere (PATH_ADJ is null). */
+  if (!PATH_ADJ) PATH_ADJ = buildAdjacency();
+  PATH_COMP = null;
+  /* Mehrfach-Modus: zusätzlich jedes Mal frisch rechnen, weil die Fusion die
+     IDs neu verteilt (gekappte Beziehungen landen auf den Trägerknoten). */
+  if (MULTI_MODE) PATH_ADJ = buildAdjacency();
   var gStart = decodeNodeId(PATH.start), gEnd = decodeNodeId(PATH.end);
   var s = OBJS[PATH.start], e = OBJS[PATH.end];
   var out = { s: s, e: e, mode: PATH.mode, directed: PATH.directed, maxHops: PATH.maxHops, none: false, gs: gStart, ge: gEnd };
@@ -376,11 +381,13 @@ function pathFind() {
   pathRenderResults();
 }
 
-/* Kennungen für die Verbindungssuche im Modell auflösen */
+/* Kennungen für die Verbindungssuche im Modell auflösen.
+   Die Adjazenz baut buildAdjacency() über die GLOBAL-Kennungen auf
+   (m2_o145 im Mehrfach-Modus, Original-ID im Einzel-Modus).
+   Der Pfad-Start und das Pfad-Ziel werden deshalb mit der globalen ID
+   aufgeschlagen — ein Umweg über die lokale ID würde ins Leere laufen. */
 function decodeNodeId(x) {
-  if (!MULTI_MODE) return x;
-  var g = groupOf(x);
-  return (g && g.l != null) ? String(g.l) : String(x);
+  return String(x);
 }
 
 function pathRenderResults() {
