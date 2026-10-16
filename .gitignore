@@ -1,20 +1,11 @@
-_uploads_*
+# Test-Harnesses & Debug-Artefakte
+test_*.js
 _shot_*
 stage_*.js
-test_harness*.js
+_uploads_*
 __pycache__/
 *.pyc
 .DS_Store
+
+# Modelldaten gehören nicht ins Repo
 *.qea
-test_shots.js
-test_v60.js
-test_focus.js
-test_jump*.js
-test_v*.js
-test_cm*.js
-test_focus.js
-test_jump*.js
-test_v60.js
-test_v70.js
-test_v71.js
-test_v72.js
