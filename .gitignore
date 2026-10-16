@@ -7,3 +7,6 @@ __pycache__/
 .DS_Store
 *.qea
 test_shots.js
+test_v60.js
+test_focus.js
+test_jump*.js

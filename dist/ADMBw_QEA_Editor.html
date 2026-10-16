@@ -26,6 +26,33 @@
   .drop:hover, .drop.over { border-color:var(--bw-blue); background:#EAF2F8; transform:translateY(-1px); }
   .drop .big { font-size:18px; font-weight:700; color:var(--bw-blue); }
   .drop .small { font-size:13px; color:var(--bw-mid); margin-top:8px; line-height:1.6; }
+  .up-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:18px 0 6px; }
+  .upbtn { font:inherit; font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer; border:2px solid var(--bw-blue); }
+  .upbtn.one { background:#fff; color:var(--bw-blue); }
+  .upbtn.one:hover { background:#EAF2F8; }
+  .upbtn.many { background:var(--bw-blue); color:#fff; }
+  .upbtn.many:hover { filter:brightness(1.12); }
+  .up-hint { font-size:12px; color:var(--bw-mid); margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
+  .up-hint b { color:var(--bw-blue); }
+  .mmode.mnodata { opacity:.55; }
+
+  /* Modellübergreifender Fokus (Mehrfach-Modus) */
+  .modelband { border:1px solid var(--border); border-left:4px solid var(--bw-blue); background:#F7FAFC; border-radius:8px; padding:10px 12px; margin:10px 0 14px; }
+  .mb-row { font-size:13px; margin:4px 0; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .mb-note { color:var(--bw-mid); font-size:12px; }
+  .mchip { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#E6EEF4; color:var(--bw-blue); border:1px solid #C6D8E4; white-space:nowrap; }
+  .mchip-m1 { background:#E6EEF4; }
+  .mchip-m2 { background:#FDF0E3; color:#8A4B00; border-color:#F0D7B8; }
+  .mchip-m3 { background:#E9F3EA; color:#1E5B2A; border-color:#C6E0C9; }
+  .mb-jump { padding-top:4px; gap:8px; }
+  .mb-cross { margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); font-size:13px; }
+  .mb-table { margin-top:8px; }
+  tr.xmodel { background:#FFF8EE; }
+  tr.xmodel:hover { background:#FDEFDC; }
+  .xbadge { display:inline-block; font-size:10px; font-weight:700; color:#8A4B00; background:#FBE4C9; border-radius:8px; padding:1px 6px; }
+  .dir-out { color:#1E5B2A; font-weight:700; font-size:12px; }
+  .dir-in { color:#8A4B00; font-weight:700; font-size:12px; }
+  .mhint { display:inline-block; font-size:11px; font-weight:400; color:var(--bw-mid); margin-left:10px; }
 
   /* Cockpit / Modellbar & Globale Suche (Search-First!) */
   #modellbar { background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:0 2px 10px rgba(0,68,113,.06); }
@@ -389,7 +416,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>✏️ ADMBw QEA Editor <span class="badge-v">v5.0 · Edit</span></h1>
+      <h1>✏️ ADMBw QEA Editor <span class="badge-v">v6.0 · Multi-Architektur</span></h1>
       <p>QEA-Architekturen verstehen <b>und bearbeiten</b>: Pakete &amp; Sichten erkunden, im Graphen analysieren, Verbindungen nachweisen, Elemente/Pakete/Sichten/Beziehungen ändern und als neue .qea speichern — 100&nbsp;% lokal im Browser, ohne KI.</p>
     </div>
   </div>
@@ -398,12 +425,17 @@
   <div id="printmeta"></div>
   <div id="upload">
     <div class="drop" id="dropzone">
-      <div class="big">📂 QEA- / EAPX-Architekturdatenmodell hier ablegen oder klicken</div>
+      <div class="big">📂 Architekturdatei(en) hier ablegen oder klicken</div>
       <div class="small">
         <b>Der Analyse-Werkzeugkasten für Architekturen:</b> Pakete &amp; Sichten erkunden, Gesamtzusammenhang im Graph analysieren, Verbindungen zweier Elemente nachweisen — <b>ohne KI, ohne Installation, ohne Namenskonventionen</b>.<br>
         Mit Sofort-Suche und <b>1-Klick-Export jeder Sicht als PNG oder Excel (.xlsx)</b>.<br>
         <span style="color:#004471;font-weight:600">Datenschutz: 100 % Offline-Verarbeitung im Browser — keine Daten verlassen Ihren Rechner.</span>
       </div>
+      <div class="up-actions">
+        <button type="button" class="upbtn one" onclick="pickFiles(false)">📄 Eine Architektur laden</button>
+        <button type="button" class="upbtn many" onclick="pickFiles(true)">🗂️ Mehrere Architekturen verschmelzen</button>
+      </div>
+      <div class="up-hint" id="uphint">Mehrere Dateien werden zu <b>einer Landkarte</b> verschmolzen: gleichnamige Elemente gleichen Stereotyps teilen sich einen Knoten — dadurch werden <b>modellübergreifende Zusammenhänge</b> sichtbar.</div>
       <input type="file" id="file" accept=".qea,.eapx,.qeax,.sqlite" multiple style="display:none">
     </div>
   </div>
@@ -514,7 +546,7 @@
   </div>
 </main>
 <footer>
-  ADMBw QEA Editor v5.0 (Edit-Edition, Testversion) ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
+  ADMBw QEA Editor v6.0 (Edit-Edition, Testversion) ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
@@ -1216,6 +1248,7 @@ var MODEL_DBS = {};               /* je Datei: {n: DB-Objekt} */
 var MODEL_DB = null, MODEL_OBJS = {}, MODEL_PKG = {}, MODEL_DIAGS = [], MODEL_TAGS = {};
 var CONNMAP = {};                 /* Nachschlagetabelle: Beziehungs-Kennung -> Beziehung (alle Modelle) */
 var PKG_CANDS = [];               /* Kandidaten-IDs der Pakete eines Aufbaus (Umrechnung) */
+var ELEMFOCUS = null;             /* Mehrfach-Modus: Fokus auf Vorkommen eines Elements in Modell n */
 var G = {
   vp: null, built: false, baseNodes: [], baseLinks: [], viewNodes: [], viewLinks: [],
   nbr: {}, pos: {}, focus: null, fset: null, vb: null, simTimer: null,
@@ -1916,6 +1949,13 @@ function finalizeMerge(n) {
       host.models = host.models || [1];
       if (host.models.indexOf(n) < 0) host.models.push(n);
       if (TAGS[k]) { TAGS[ex] = (TAGS[ex] || []).concat(TAGS[k]); delete TAGS[k]; }
+      /* Quell-Identität dieses Vorkommens merken (für Sprung „gleiches Element in M2“) */
+      host.srcs = host.srcs || {};
+      if (host.srcs[1] == null && host.localId != null) host.srcs[1] = String(host.localId);
+      host.srcs[n] = String(o.localId != null ? o.localId : '');
+      host.mnames = host.mnames || {};
+      var mf = MODEL_FILES[n - 1];
+      if (mf) host.mnames[n] = mf.name;
     } else {
       oMap[k] = k;
       if (mk) MODEL_KEYMAP[mk] = k;
@@ -2190,7 +2230,7 @@ function exitMultiMode() {
 function toggleMultiMode(on) {
   MULTI_MODE = !!on;
   var lab = el('multilabel');
-  if (lab) lab.className = MULTI_MODE ? 'mmode on' : 'mmode';
+  if (lab) lab.className = 'mmode' + (MULTI_MODE ? ' on' : '');
   var chk = el('multichk');
   if (chk) chk.checked = MULTI_MODE;
   /* Wurde zuvor ein Einzelmodell geladen, wird es Modell 1 der Landkarte */
@@ -2204,10 +2244,13 @@ function toggleMultiMode(on) {
     return;
   }
   renderMergeBar();
+  if (MULTI_MODE) {
+    toast('Mehrfach-Modus aktiv. Wählen Sie mit <b>📂 Mehrere Architekturen verschmelzen</b> zwei oder mehr .qea-Dateien aus (oder ziehen Sie sie in das Feld). Gleichnamige Elemente gleichen Stereotyps werden zusammengeführt — so werden <b>modellübergreifende Zusammenhänge</b> sichtbar.');
+    showUpHint('Mehrfach-Modus aktiv. Wählen Sie jetzt die Architekturdateien aus.');
+    return;
+  }
   if (!DB) return;
-  toast(MULTI_MODE
-    ? 'Mehrfach-Modus aktiv: weitere .qea-Dateien werden zu einer gemeinsamen Landkarte verschmolzen. Gleichnamige Elemente werden zusammengeführt.'
-    : 'Mehrfach-Modus aus: Es wird wieder nur eine Datei geladen.');
+  toast('Mehrfach-Modus aus: Es wird wieder nur eine Datei geladen.');
 }
 
 function renderWarnbar() {
@@ -3606,10 +3649,11 @@ function vpsForStereotype(st) {
   return out;
 }
 
-function openElement(oid, mode) {
+function openElement(oid, mode, focusModel) {
   oid = String(oid);
   var o = OBJS[oid];
   if (!o) return;
+  ELEMFOCUS = focusModel ? Number(focusModel) : null;
   var d = el('gsres'); if (d) d.style.display = 'none';
   var i, c, other;
   var outgoing = [], incoming = [];
@@ -3631,6 +3675,8 @@ function openElement(oid, mode) {
     ' &nbsp;▸&nbsp; <b>📦 ' + esc(o.name || '(ohne Name)') + '</b></div>');
 
   h.push('<h2>📦 ' + esc(o.name || '(ohne Name)') + '</h2>');
+  var mCh = coModelBlock(o, oid);
+  if (mCh) h.push(mCh);
   h.push('<div class="kpis">' +
     '<span>Stereotype: <code>' + esc(o.st || '–') + '</code></span>' +
     '<span><b>' + (CONNCOUNT[oid] || 0) + '</b> Verbindungen</span>' +
@@ -3689,29 +3735,8 @@ function openElement(oid, mode) {
   }
 
   h.push('<div class="vpfilterwrap"><input class="vpfilter" placeholder="🔍 Beziehungen &amp; Eigenschaften filtern …" oninput="filterRows(this)"></div>');
-  h.push('<h3>Ausgehende Beziehungen (' + outgoing.length + ')</h3>');
-  if (!outgoing.length) h.push('<div class="hint">Keine ausgehenden Beziehungen.</div>');
-  else {
-    h.push('<table class="data"><thead><tr><th>Ziel</th><th>Beziehung</th><th>Ziel-Stereotype</th><th>Paket</th><th style="width:36px"></th></tr></thead><tbody>');
-    for (i = 0; i < outgoing.length && i < 300; i++) {
-      c = outgoing[i];
-      other = OBJS[String(c.b)];
-      h.push('<tr class="clickable" onclick="openElement(\'' + String(c.b) + '\')"><td><b>' + esc(other ? other.name : '?') + '</b></td><td><code>' + esc(c.st || c.type || '→') + '</code></td><td>' + esc(other ? other.st : '') + '</td><td class="dim">' + esc(other ? other.pkg : '') + '</td><td><button class="btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();EDIT.connEdit(' + c.id + ')" title="Diese Beziehung bearbeiten">✏️</button></td></tr>');
-    }
-    h.push('</tbody></table>');
-  }
-
-  h.push('<h3>Eingehende Beziehungen (' + incoming.length + ')</h3>');
-  if (!incoming.length) h.push('<div class="hint">Keine eingehenden Beziehungen.</div>');
-  else {
-    h.push('<table class="data"><thead><tr><th>Quelle</th><th>Beziehung</th><th>Quelle-Stereotype</th><th>Paket</th><th style="width:36px"></th></tr></thead><tbody>');
-    for (i = 0; i < incoming.length && i < 300; i++) {
-      c = incoming[i];
-      other = OBJS[String(c.a)];
-      h.push('<tr class="clickable" onclick="openElement(\'' + String(c.a) + '\')"><td><b>' + esc(other ? other.name : '?') + '</b></td><td><code>' + esc(c.st || c.type || '→') + '</code></td><td>' + esc(other ? other.st : '') + '</td><td class="dim">' + esc(other ? other.pkg : '') + '</td><td><button class="btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();EDIT.connEdit(' + c.id + ')" title="Diese Beziehung bearbeiten">✏️</button></td></tr>');
-    }
-    h.push('</tbody></table>');
-  }
+  h.push(relTable('Ausgehende Beziehungen', outgoing, oid, 'b'));
+  h.push(relTable('Eingehende Beziehungen', incoming, oid, 'a'));
 
   var tags = TAGS[oid] || [];
   h.push('<h3>Tagged Values / Eigenschaften (' + tags.length + ') <button class="btn-sm" style="margin-left:8px;vertical-align:middle" onclick="EDIT.tagOpen(\'' + oid + '\')" title="Tags dieses Elements bearbeiten (ändern, ergänzen, entfernen)">🏷️ Bearbeiten</button></h3>');
@@ -3741,6 +3766,129 @@ function openElement(oid, mode) {
   el('vpbox').innerHTML = h.join('');
   showView('vp');
   setVPMode(mode === 'graph' ? 'graph' : 'list');
+}
+
+/* Beziehungstabelle eines Elements. side='b' = ausgehend (Gegenüber ist Ziel),
+   side='a' = eingehend (Gegenüber ist Quelle).
+   Im Mehrfach-Modus: Spalte „Architektur“ mit Modellkennzeichnung, fett markierte
+   Zeilen für Beziehungen über eine Modellgrenze, plus Fokus-Filter (ELEMFOCUS). */
+function relTable(title, list, oid, side) {
+  var multi = MULTI_MODE && (typeof MODEL_FILES !== 'undefined' && MODEL_FILES.length > 1);
+  var h = [], i, c, other;
+  var ownNo = 1;
+  var pg = parseG(oid);
+  if (pg) ownNo = pg.n;
+
+  /* Fokus: nur Beziehungen einer bestimmten Architektur zeigen */
+  var shown = list, fmod = ELEMFOCUS;
+  if (fmod) {
+    shown = [];
+    for (i = 0; i < list.length; i++) {
+      var p = parseG(list[i][side]);
+      if ((p ? p.n : 1) === fmod) shown.push(list[i]);
+    }
+  }
+
+  h.push('<h3>' + esc(title) + ' (' + shown.length + (fmod ? ' von ' + list.length : '') + ')' +
+    (multi ? '<span class="mhint">Mehrfach-Modus: Zeilen mit <b>Modellkennung</b> verbinden verschiedene Architekturen.</span>' : '') + '</h3>');
+  if (!shown.length) {
+    h.push('<div class="hint">Keine ' + esc(title.toLowerCase()) + (fmod ? ' in dieser Architektur' : '') + '.</div>');
+    return h.join('');
+  }
+  h.push('<table class="data"><thead><tr><th>' + (side === 'b' ? 'Ziel' : 'Quelle') + '</th><th>Beziehung</th><th>Stereotype</th>' +
+    (multi ? '<th>Architektur</th>' : '') + '<th>Paket</th><th style="width:36px"></th></tr></thead><tbody>');
+  for (i = 0; i < shown.length && i < 300; i++) {
+    c = shown[i];
+    var otherKey = String(c[side]);
+    other = OBJS[otherKey];
+    var po = parseG(otherKey), otherNo = po ? po.n : 1;
+    var isCross = multi && (otherNo !== ownNo);
+    var ziel = String(c.a) === String(oid) ? String(c.b) : String(c.a);
+    h.push('<tr class="clickable' + (isCross ? ' xmodel' : '') + '" onclick="openElement(\'' + ziel + '\')">' +
+      '<td><b>' + esc(other ? other.name : '?') + '</b></td>' +
+      '<td><code>' + esc(c.st || c.type || '→') + '</code></td>' +
+      '<td>' + esc(other ? other.st : '') + '</td>' +
+      (multi ? '<td>' + (isCross
+        ? '<span class="mchip mchip-m' + otherNo + '">' + esc(mLabelNo(otherNo)) + '</span> <span class="xbadge">Modellgrenze</span>'
+        : '<span class="mchip mchip-m' + otherNo + '">' + esc(mLabelNo(otherNo)) + '</span>') + '</td>' : '') +
+      '<td class="dim">' + esc(other ? other.pkg : '') + '</td>' +
+      '<td><button class="btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();EDIT.connEdit(' + c.id + ')" title="Diese Beziehung bearbeiten">✏️</button></td>' +
+    '</tr>');
+  }
+  h.push('</tbody></table>');
+  if (shown.length > 300) h.push('<div class="hint">… ' + (shown.length - 300) + ' weitere (vollständig im Excel-/CSV-Export).</div>');
+  return h.join('');
+}
+
+/* ----------------------------------------------------------------
+   Modellübergreifender Fokus: zeigt, in welchen geladenen Architekturen
+   dieses Element vorkommt, und listet Beziehungen, die über Modellgrenzen
+   laufen (M1 ↔ M2). Nur im Mehrfach-Modus mit mehr als einer Datei.
+   ---------------------------------------------------------------- */
+function mLabelNo(n) {
+  var f = (typeof MODEL_FILES !== 'undefined' && MODEL_FILES[n - 1]) ? MODEL_FILES[n - 1] : null;
+  return 'M' + n + (f && f.name ? ' · ' + f.name : '');
+}
+function coModelBlock(o, oid) {
+  if (!MULTI_MODE || (typeof MODEL_FILES === 'undefined' || MODEL_FILES.length < 2)) return '';
+  var models = (o.models || []).slice().sort(function (a, b) { return a - b; });
+  var i, c, k, h = [];
+  var cross = [];
+  for (i = 0; i < CONS.length; i++) {
+    c = CONS[i];
+    if (String(c.a) !== String(oid) && String(c.b) !== String(oid)) continue;
+    var isA = (String(c.a) === String(oid));
+    var pa = parseG(c.a), pb = parseG(c.b);
+    /* Modellzugehörigkeit je Seite: Präfix, sonst M1 */
+    var na = pa ? pa.n : 1, nb = pb ? pb.n : 1;
+    if (na !== nb) {
+      cross.push({ con: c, own: (isA ? na : nb), otherNo: (isA ? nb : na), dir: isA ? 'ausgehend' : 'eingehend' });
+    }
+  }
+  h.push('<div class="modelband">');
+  h.push('<div class="mb-row"><b>🏷️ Vorkommen in geladenen Architekturen:</b> ');
+  for (i = 0; i < models.length; i++) {
+    h.push('<span class="mchip mchip-m' + models[i] + '" title="Element ist in dieser Architektur enthalten">' + esc(mLabelNo(models[i])) + '</span> ');
+  }
+  if (models.length > 1) h.push('<span class="mb-note">→ in <b>' + models.length + '</b> Architekturen vorhanden (gemeinsames Element)</span>');
+  h.push('</div>');
+
+  /* Sprung zu den Quell-Vorkommen */
+  if (o.srcs) {
+    var jump = [];
+    for (k in o.srcs) {
+      if (!o.srcs.hasOwnProperty(k)) continue;
+      if (String(k) === '1' && models.length === 1) continue;
+      jump.push('<button class="btn-sm" onclick="openElement(\'' + oid + '\', null, ' + Number(k) + ')" title="Beziehungen aus Sicht von ' + esc(mLabelNo(Number(k))) + ' zeigen">🔎 Fokus ' + esc(mLabelNo(Number(k))) + '</button>');
+    }
+    if (jump.length > 1) h.push('<div class="mb-row mb-jump">' + jump.join(' ') + '</div>');
+  }
+
+  /* Modellübergreifende Beziehungen */
+  h.push('<div class="mb-cross"><b>🔗 Modellübergreifende Beziehungen (' + cross.length + '):</b> ');
+  if (!cross.length) {
+    h.push('<span class="mb-note">Keine direkte Beziehung über eine Architekturgrenze. ' +
+      (models.length > 1 ? 'Das Element ist in mehreren Architekturen vorhanden, hat aber (noch) keine Verbindung zu Elementen der jeweils anderen.' : 'Dieses Element kommt nur in einer Architektur vor.') + '</span>');
+  } else {
+    h.push('<table class="data mb-table"><thead><tr><th>Richtung</th><th>Gegenüber</th><th>Beziehung</th><th>Architektur</th><th></th></tr></thead><tbody>');
+    for (i = 0; i < cross.length && i < 60; i++) {
+      var x = cross[i];
+      var otherKey = (String(x.con.a) === String(oid)) ? String(x.con.b) : String(x.con.a);
+      var other = OBJS[otherKey];
+      h.push('<tr class="clickable" onclick="openElement(\'' + otherKey + '\')">' +
+        '<td><span class="dir-' + (x.dir === 'ausgehend' ? 'out' : 'in') + '">' + (x.dir === 'ausgehend' ? '→ hinaus' : '← herein') + '</span></td>' +
+        '<td><b>' + esc(other ? other.name : '?') + '</b></td>' +
+        '<td><code>' + esc(x.con.st || x.con.type || '') + '</code></td>' +
+        '<td><span class="mchip mchip-m' + x.otherNo + '">' + esc(mLabelNo(x.otherNo)) + '</span></td>' +
+        '<td><button class="btn-sm" onclick="event.stopPropagation();EDIT.connEdit(' + x.con.id + ')" title="Beziehung bearbeiten">✏️</button></td>' +
+      '</tr>');
+    }
+    h.push('</tbody></table>');
+    if (cross.length > 60) h.push('<div class="hint">… ' + (cross.length - 60) + ' weitere modellübergreifende Beziehungen.</div>');
+  }
+  h.push('</div>');
+  h.push('</div>');
+  return h.join('');
 }
 
 function elementExpand(hops) {
@@ -4794,27 +4942,59 @@ function showView(v, activeTabOverride) {
 }
 
 /* ---------- Upload-Verdrahtung ---------- */
+/* Dateiauswahl starten. multi=true erzwingt das Verschmelzen mehrerer Dateien. */
+function pickFiles(multi) {
+  var input = el('file');
+  if (!input) return;
+  window.__pickMode = !!multi;
+  if (multi && !MULTI_MODE) toggleMultiMode(true);
+  input.click();
+}
+
+/* Fortschritt/Hinweis im Upload-Bereich anzeigen (wird nach dem Laden ausgeblendet) */
+function showUpHint(html) {
+  var h = el('uphint');
+  if (!h) return;
+  h.style.display = 'block';
+  h.innerHTML = html;
+}
 function wireUpload() {
   var zone = el('dropzone'), input = el('file');
-  zone.onclick = function () { input.click(); };
-  input.onchange = function () {
-    if (input.files && input.files.length) handleFiles(input.files);
+  if (!zone || !input) return;
+  zone.onclick = function (e) {
+    /* Klicks auf die beiden Schaltflächen haben eigene Handler */
+    if (e && e.target && e.target.closest && e.target.closest('.upbtn')) return;
+    if (e && e.target && e.target.closest && e.target.closest('.up-hint')) return;
+    pickFiles(false);
   };
-  /* Dateien der Reihe nach einlesen (Mehrfach-Modus: nacheinander verschmelzen) */
-  function handleFiles(files) {
+  input.onchange = function () {
+    var f = null;
+    try { f = window.__pickMode; } catch (e) { f = null; }
+    if (input.files && input.files.length) handleFiles(input.files, f);
+    window.__pickMode = null;
+  };
+  /* Dateien der Reihe nach einlesen (Mehrfach-Modus: nacheinander verschmelzen)
+     forceMulti: true  = mehrere Dateien verschmelzen erzwingen (Schaltfläche)
+                 false = genau eine Datei laden/ersetzen
+                 null  = automatisch (mehrere Dateien => verschmelzen) */
+  function handleFiles(files, forceMulti) {
     if (!files || !files.length) return;
     var arr = [], i;
     for (i = 0; i < files.length; i++) arr.push(files[i]);
+    var multi = (forceMulti === true) ? true : (forceMulti === false ? false : (arr.length > 1));
+    if (multi && !MULTI_MODE) { toggleMultiMode(true); }
+    if (multi) { showUpHint('Verschmelze ' + arr.length + ' Architekturdatei(en) zu einer Landkarte …'); }
     var idx = 0;
     (function next() {
-      if (idx >= arr.length) { input.value = ''; return; }
+      if (idx >= arr.length) { input.value = ''; window.__pickMode = null; return; }
       var f = arr[idx++];
       var rd = new FileReader();
       rd.onload = function () {
-        /* Einzelmodus nur, wenn der Nutzer den Mehrfach-Modus nicht gewählt hat
-           UND genau eine Datei kommt: dann ersetzt die Datei das Modell wie bisher. */
-        SINGLE = !MULTI_MODE && !(arr.length > 1);
+        /* Einzelmodus nur, wenn der Nutzer genau eine Datei ohne Mehrfach-Modus lädt:
+           dann ersetzt die Datei das Modell wie bisher. */
+        SINGLE = !multi;
         loadQea(rd.result, f.name);
+        if (multi) showUpHint('Verschmelze … ' + idx + '/' + arr.length + ' (' + esc(f.name) + ')');
         setTimeout(next, 60);
       };
       rd.readAsArrayBuffer(f);
@@ -4825,7 +5005,7 @@ function wireUpload() {
   zone.addEventListener('dragleave', function (e) { e.preventDefault(); zone.className = 'drop'; });
   zone.addEventListener('drop', function (e) {
     e.preventDefault(); zone.className = 'drop';
-    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files, null);
   });
   document.addEventListener('click', function (e) {
     var d = el('gsres');

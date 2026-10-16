@@ -23,6 +23,7 @@ var MODEL_DBS = {};               /* je Datei: {n: DB-Objekt} */
 var MODEL_DB = null, MODEL_OBJS = {}, MODEL_PKG = {}, MODEL_DIAGS = [], MODEL_TAGS = {};
 var CONNMAP = {};                 /* Nachschlagetabelle: Beziehungs-Kennung -> Beziehung (alle Modelle) */
 var PKG_CANDS = [];               /* Kandidaten-IDs der Pakete eines Aufbaus (Umrechnung) */
+var ELEMFOCUS = null;             /* Mehrfach-Modus: Fokus auf Vorkommen eines Elements in Modell n */
 var G = {
   vp: null, built: false, baseNodes: [], baseLinks: [], viewNodes: [], viewLinks: [],
   nbr: {}, pos: {}, focus: null, fset: null, vb: null, simTimer: null,
@@ -723,6 +724,13 @@ function finalizeMerge(n) {
       host.models = host.models || [1];
       if (host.models.indexOf(n) < 0) host.models.push(n);
       if (TAGS[k]) { TAGS[ex] = (TAGS[ex] || []).concat(TAGS[k]); delete TAGS[k]; }
+      /* Quell-Identität dieses Vorkommens merken (für Sprung „gleiches Element in M2“) */
+      host.srcs = host.srcs || {};
+      if (host.srcs[1] == null && host.localId != null) host.srcs[1] = String(host.localId);
+      host.srcs[n] = String(o.localId != null ? o.localId : '');
+      host.mnames = host.mnames || {};
+      var mf = MODEL_FILES[n - 1];
+      if (mf) host.mnames[n] = mf.name;
     } else {
       oMap[k] = k;
       if (mk) MODEL_KEYMAP[mk] = k;
@@ -997,7 +1005,7 @@ function exitMultiMode() {
 function toggleMultiMode(on) {
   MULTI_MODE = !!on;
   var lab = el('multilabel');
-  if (lab) lab.className = MULTI_MODE ? 'mmode on' : 'mmode';
+  if (lab) lab.className = 'mmode' + (MULTI_MODE ? ' on' : '');
   var chk = el('multichk');
   if (chk) chk.checked = MULTI_MODE;
   /* Wurde zuvor ein Einzelmodell geladen, wird es Modell 1 der Landkarte */
@@ -1011,10 +1019,13 @@ function toggleMultiMode(on) {
     return;
   }
   renderMergeBar();
+  if (MULTI_MODE) {
+    toast('Mehrfach-Modus aktiv. Wählen Sie mit <b>📂 Mehrere Architekturen verschmelzen</b> zwei oder mehr .qea-Dateien aus (oder ziehen Sie sie in das Feld). Gleichnamige Elemente gleichen Stereotyps werden zusammengeführt — so werden <b>modellübergreifende Zusammenhänge</b> sichtbar.');
+    showUpHint('Mehrfach-Modus aktiv. Wählen Sie jetzt die Architekturdateien aus.');
+    return;
+  }
   if (!DB) return;
-  toast(MULTI_MODE
-    ? 'Mehrfach-Modus aktiv: weitere .qea-Dateien werden zu einer gemeinsamen Landkarte verschmolzen. Gleichnamige Elemente werden zusammengeführt.'
-    : 'Mehrfach-Modus aus: Es wird wieder nur eine Datei geladen.');
+  toast('Mehrfach-Modus aus: Es wird wieder nur eine Datei geladen.');
 }
 
 function renderWarnbar() {

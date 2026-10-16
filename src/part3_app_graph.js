@@ -485,10 +485,11 @@ function vpsForStereotype(st) {
   return out;
 }
 
-function openElement(oid, mode) {
+function openElement(oid, mode, focusModel) {
   oid = String(oid);
   var o = OBJS[oid];
   if (!o) return;
+  ELEMFOCUS = focusModel ? Number(focusModel) : null;
   var d = el('gsres'); if (d) d.style.display = 'none';
   var i, c, other;
   var outgoing = [], incoming = [];
@@ -510,6 +511,8 @@ function openElement(oid, mode) {
     ' &nbsp;▸&nbsp; <b>📦 ' + esc(o.name || '(ohne Name)') + '</b></div>');
 
   h.push('<h2>📦 ' + esc(o.name || '(ohne Name)') + '</h2>');
+  var mCh = coModelBlock(o, oid);
+  if (mCh) h.push(mCh);
   h.push('<div class="kpis">' +
     '<span>Stereotype: <code>' + esc(o.st || '–') + '</code></span>' +
     '<span><b>' + (CONNCOUNT[oid] || 0) + '</b> Verbindungen</span>' +
@@ -568,29 +571,8 @@ function openElement(oid, mode) {
   }
 
   h.push('<div class="vpfilterwrap"><input class="vpfilter" placeholder="🔍 Beziehungen &amp; Eigenschaften filtern …" oninput="filterRows(this)"></div>');
-  h.push('<h3>Ausgehende Beziehungen (' + outgoing.length + ')</h3>');
-  if (!outgoing.length) h.push('<div class="hint">Keine ausgehenden Beziehungen.</div>');
-  else {
-    h.push('<table class="data"><thead><tr><th>Ziel</th><th>Beziehung</th><th>Ziel-Stereotype</th><th>Paket</th><th style="width:36px"></th></tr></thead><tbody>');
-    for (i = 0; i < outgoing.length && i < 300; i++) {
-      c = outgoing[i];
-      other = OBJS[String(c.b)];
-      h.push('<tr class="clickable" onclick="openElement(\'' + String(c.b) + '\')"><td><b>' + esc(other ? other.name : '?') + '</b></td><td><code>' + esc(c.st || c.type || '→') + '</code></td><td>' + esc(other ? other.st : '') + '</td><td class="dim">' + esc(other ? other.pkg : '') + '</td><td><button class="btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();EDIT.connEdit(' + c.id + ')" title="Diese Beziehung bearbeiten">✏️</button></td></tr>');
-    }
-    h.push('</tbody></table>');
-  }
-
-  h.push('<h3>Eingehende Beziehungen (' + incoming.length + ')</h3>');
-  if (!incoming.length) h.push('<div class="hint">Keine eingehenden Beziehungen.</div>');
-  else {
-    h.push('<table class="data"><thead><tr><th>Quelle</th><th>Beziehung</th><th>Quelle-Stereotype</th><th>Paket</th><th style="width:36px"></th></tr></thead><tbody>');
-    for (i = 0; i < incoming.length && i < 300; i++) {
-      c = incoming[i];
-      other = OBJS[String(c.a)];
-      h.push('<tr class="clickable" onclick="openElement(\'' + String(c.a) + '\')"><td><b>' + esc(other ? other.name : '?') + '</b></td><td><code>' + esc(c.st || c.type || '→') + '</code></td><td>' + esc(other ? other.st : '') + '</td><td class="dim">' + esc(other ? other.pkg : '') + '</td><td><button class="btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();EDIT.connEdit(' + c.id + ')" title="Diese Beziehung bearbeiten">✏️</button></td></tr>');
-    }
-    h.push('</tbody></table>');
-  }
+  h.push(relTable('Ausgehende Beziehungen', outgoing, oid, 'b'));
+  h.push(relTable('Eingehende Beziehungen', incoming, oid, 'a'));
 
   var tags = TAGS[oid] || [];
   h.push('<h3>Tagged Values / Eigenschaften (' + tags.length + ') <button class="btn-sm" style="margin-left:8px;vertical-align:middle" onclick="EDIT.tagOpen(\'' + oid + '\')" title="Tags dieses Elements bearbeiten (ändern, ergänzen, entfernen)">🏷️ Bearbeiten</button></h3>');
@@ -620,6 +602,129 @@ function openElement(oid, mode) {
   el('vpbox').innerHTML = h.join('');
   showView('vp');
   setVPMode(mode === 'graph' ? 'graph' : 'list');
+}
+
+/* Beziehungstabelle eines Elements. side='b' = ausgehend (Gegenüber ist Ziel),
+   side='a' = eingehend (Gegenüber ist Quelle).
+   Im Mehrfach-Modus: Spalte „Architektur“ mit Modellkennzeichnung, fett markierte
+   Zeilen für Beziehungen über eine Modellgrenze, plus Fokus-Filter (ELEMFOCUS). */
+function relTable(title, list, oid, side) {
+  var multi = MULTI_MODE && (typeof MODEL_FILES !== 'undefined' && MODEL_FILES.length > 1);
+  var h = [], i, c, other;
+  var ownNo = 1;
+  var pg = parseG(oid);
+  if (pg) ownNo = pg.n;
+
+  /* Fokus: nur Beziehungen einer bestimmten Architektur zeigen */
+  var shown = list, fmod = ELEMFOCUS;
+  if (fmod) {
+    shown = [];
+    for (i = 0; i < list.length; i++) {
+      var p = parseG(list[i][side]);
+      if ((p ? p.n : 1) === fmod) shown.push(list[i]);
+    }
+  }
+
+  h.push('<h3>' + esc(title) + ' (' + shown.length + (fmod ? ' von ' + list.length : '') + ')' +
+    (multi ? '<span class="mhint">Mehrfach-Modus: Zeilen mit <b>Modellkennung</b> verbinden verschiedene Architekturen.</span>' : '') + '</h3>');
+  if (!shown.length) {
+    h.push('<div class="hint">Keine ' + esc(title.toLowerCase()) + (fmod ? ' in dieser Architektur' : '') + '.</div>');
+    return h.join('');
+  }
+  h.push('<table class="data"><thead><tr><th>' + (side === 'b' ? 'Ziel' : 'Quelle') + '</th><th>Beziehung</th><th>Stereotype</th>' +
+    (multi ? '<th>Architektur</th>' : '') + '<th>Paket</th><th style="width:36px"></th></tr></thead><tbody>');
+  for (i = 0; i < shown.length && i < 300; i++) {
+    c = shown[i];
+    var otherKey = String(c[side]);
+    other = OBJS[otherKey];
+    var po = parseG(otherKey), otherNo = po ? po.n : 1;
+    var isCross = multi && (otherNo !== ownNo);
+    var ziel = String(c.a) === String(oid) ? String(c.b) : String(c.a);
+    h.push('<tr class="clickable' + (isCross ? ' xmodel' : '') + '" onclick="openElement(\'' + ziel + '\')">' +
+      '<td><b>' + esc(other ? other.name : '?') + '</b></td>' +
+      '<td><code>' + esc(c.st || c.type || '→') + '</code></td>' +
+      '<td>' + esc(other ? other.st : '') + '</td>' +
+      (multi ? '<td>' + (isCross
+        ? '<span class="mchip mchip-m' + otherNo + '">' + esc(mLabelNo(otherNo)) + '</span> <span class="xbadge">Modellgrenze</span>'
+        : '<span class="mchip mchip-m' + otherNo + '">' + esc(mLabelNo(otherNo)) + '</span>') + '</td>' : '') +
+      '<td class="dim">' + esc(other ? other.pkg : '') + '</td>' +
+      '<td><button class="btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();EDIT.connEdit(' + c.id + ')" title="Diese Beziehung bearbeiten">✏️</button></td>' +
+    '</tr>');
+  }
+  h.push('</tbody></table>');
+  if (shown.length > 300) h.push('<div class="hint">… ' + (shown.length - 300) + ' weitere (vollständig im Excel-/CSV-Export).</div>');
+  return h.join('');
+}
+
+/* ----------------------------------------------------------------
+   Modellübergreifender Fokus: zeigt, in welchen geladenen Architekturen
+   dieses Element vorkommt, und listet Beziehungen, die über Modellgrenzen
+   laufen (M1 ↔ M2). Nur im Mehrfach-Modus mit mehr als einer Datei.
+   ---------------------------------------------------------------- */
+function mLabelNo(n) {
+  var f = (typeof MODEL_FILES !== 'undefined' && MODEL_FILES[n - 1]) ? MODEL_FILES[n - 1] : null;
+  return 'M' + n + (f && f.name ? ' · ' + f.name : '');
+}
+function coModelBlock(o, oid) {
+  if (!MULTI_MODE || (typeof MODEL_FILES === 'undefined' || MODEL_FILES.length < 2)) return '';
+  var models = (o.models || []).slice().sort(function (a, b) { return a - b; });
+  var i, c, k, h = [];
+  var cross = [];
+  for (i = 0; i < CONS.length; i++) {
+    c = CONS[i];
+    if (String(c.a) !== String(oid) && String(c.b) !== String(oid)) continue;
+    var isA = (String(c.a) === String(oid));
+    var pa = parseG(c.a), pb = parseG(c.b);
+    /* Modellzugehörigkeit je Seite: Präfix, sonst M1 */
+    var na = pa ? pa.n : 1, nb = pb ? pb.n : 1;
+    if (na !== nb) {
+      cross.push({ con: c, own: (isA ? na : nb), otherNo: (isA ? nb : na), dir: isA ? 'ausgehend' : 'eingehend' });
+    }
+  }
+  h.push('<div class="modelband">');
+  h.push('<div class="mb-row"><b>🏷️ Vorkommen in geladenen Architekturen:</b> ');
+  for (i = 0; i < models.length; i++) {
+    h.push('<span class="mchip mchip-m' + models[i] + '" title="Element ist in dieser Architektur enthalten">' + esc(mLabelNo(models[i])) + '</span> ');
+  }
+  if (models.length > 1) h.push('<span class="mb-note">→ in <b>' + models.length + '</b> Architekturen vorhanden (gemeinsames Element)</span>');
+  h.push('</div>');
+
+  /* Sprung zu den Quell-Vorkommen */
+  if (o.srcs) {
+    var jump = [];
+    for (k in o.srcs) {
+      if (!o.srcs.hasOwnProperty(k)) continue;
+      if (String(k) === '1' && models.length === 1) continue;
+      jump.push('<button class="btn-sm" onclick="openElement(\'' + oid + '\', null, ' + Number(k) + ')" title="Beziehungen aus Sicht von ' + esc(mLabelNo(Number(k))) + ' zeigen">🔎 Fokus ' + esc(mLabelNo(Number(k))) + '</button>');
+    }
+    if (jump.length > 1) h.push('<div class="mb-row mb-jump">' + jump.join(' ') + '</div>');
+  }
+
+  /* Modellübergreifende Beziehungen */
+  h.push('<div class="mb-cross"><b>🔗 Modellübergreifende Beziehungen (' + cross.length + '):</b> ');
+  if (!cross.length) {
+    h.push('<span class="mb-note">Keine direkte Beziehung über eine Architekturgrenze. ' +
+      (models.length > 1 ? 'Das Element ist in mehreren Architekturen vorhanden, hat aber (noch) keine Verbindung zu Elementen der jeweils anderen.' : 'Dieses Element kommt nur in einer Architektur vor.') + '</span>');
+  } else {
+    h.push('<table class="data mb-table"><thead><tr><th>Richtung</th><th>Gegenüber</th><th>Beziehung</th><th>Architektur</th><th></th></tr></thead><tbody>');
+    for (i = 0; i < cross.length && i < 60; i++) {
+      var x = cross[i];
+      var otherKey = (String(x.con.a) === String(oid)) ? String(x.con.b) : String(x.con.a);
+      var other = OBJS[otherKey];
+      h.push('<tr class="clickable" onclick="openElement(\'' + otherKey + '\')">' +
+        '<td><span class="dir-' + (x.dir === 'ausgehend' ? 'out' : 'in') + '">' + (x.dir === 'ausgehend' ? '→ hinaus' : '← herein') + '</span></td>' +
+        '<td><b>' + esc(other ? other.name : '?') + '</b></td>' +
+        '<td><code>' + esc(x.con.st || x.con.type || '') + '</code></td>' +
+        '<td><span class="mchip mchip-m' + x.otherNo + '">' + esc(mLabelNo(x.otherNo)) + '</span></td>' +
+        '<td><button class="btn-sm" onclick="event.stopPropagation();EDIT.connEdit(' + x.con.id + ')" title="Beziehung bearbeiten">✏️</button></td>' +
+      '</tr>');
+    }
+    h.push('</tbody></table>');
+    if (cross.length > 60) h.push('<div class="hint">… ' + (cross.length - 60) + ' weitere modellübergreifende Beziehungen.</div>');
+  }
+  h.push('</div>');
+  h.push('</div>');
+  return h.join('');
 }
 
 function elementExpand(hops) {
@@ -1673,27 +1778,59 @@ function showView(v, activeTabOverride) {
 }
 
 /* ---------- Upload-Verdrahtung ---------- */
+/* Dateiauswahl starten. multi=true erzwingt das Verschmelzen mehrerer Dateien. */
+function pickFiles(multi) {
+  var input = el('file');
+  if (!input) return;
+  window.__pickMode = !!multi;
+  if (multi && !MULTI_MODE) toggleMultiMode(true);
+  input.click();
+}
+
+/* Fortschritt/Hinweis im Upload-Bereich anzeigen (wird nach dem Laden ausgeblendet) */
+function showUpHint(html) {
+  var h = el('uphint');
+  if (!h) return;
+  h.style.display = 'block';
+  h.innerHTML = html;
+}
 function wireUpload() {
   var zone = el('dropzone'), input = el('file');
-  zone.onclick = function () { input.click(); };
-  input.onchange = function () {
-    if (input.files && input.files.length) handleFiles(input.files);
+  if (!zone || !input) return;
+  zone.onclick = function (e) {
+    /* Klicks auf die beiden Schaltflächen haben eigene Handler */
+    if (e && e.target && e.target.closest && e.target.closest('.upbtn')) return;
+    if (e && e.target && e.target.closest && e.target.closest('.up-hint')) return;
+    pickFiles(false);
   };
-  /* Dateien der Reihe nach einlesen (Mehrfach-Modus: nacheinander verschmelzen) */
-  function handleFiles(files) {
+  input.onchange = function () {
+    var f = null;
+    try { f = window.__pickMode; } catch (e) { f = null; }
+    if (input.files && input.files.length) handleFiles(input.files, f);
+    window.__pickMode = null;
+  };
+  /* Dateien der Reihe nach einlesen (Mehrfach-Modus: nacheinander verschmelzen)
+     forceMulti: true  = mehrere Dateien verschmelzen erzwingen (Schaltfläche)
+                 false = genau eine Datei laden/ersetzen
+                 null  = automatisch (mehrere Dateien => verschmelzen) */
+  function handleFiles(files, forceMulti) {
     if (!files || !files.length) return;
     var arr = [], i;
     for (i = 0; i < files.length; i++) arr.push(files[i]);
+    var multi = (forceMulti === true) ? true : (forceMulti === false ? false : (arr.length > 1));
+    if (multi && !MULTI_MODE) { toggleMultiMode(true); }
+    if (multi) { showUpHint('Verschmelze ' + arr.length + ' Architekturdatei(en) zu einer Landkarte …'); }
     var idx = 0;
     (function next() {
-      if (idx >= arr.length) { input.value = ''; return; }
+      if (idx >= arr.length) { input.value = ''; window.__pickMode = null; return; }
       var f = arr[idx++];
       var rd = new FileReader();
       rd.onload = function () {
-        /* Einzelmodus nur, wenn der Nutzer den Mehrfach-Modus nicht gewählt hat
-           UND genau eine Datei kommt: dann ersetzt die Datei das Modell wie bisher. */
-        SINGLE = !MULTI_MODE && !(arr.length > 1);
+        /* Einzelmodus nur, wenn der Nutzer genau eine Datei ohne Mehrfach-Modus lädt:
+           dann ersetzt die Datei das Modell wie bisher. */
+        SINGLE = !multi;
         loadQea(rd.result, f.name);
+        if (multi) showUpHint('Verschmelze … ' + idx + '/' + arr.length + ' (' + esc(f.name) + ')');
         setTimeout(next, 60);
       };
       rd.readAsArrayBuffer(f);
@@ -1704,7 +1841,7 @@ function wireUpload() {
   zone.addEventListener('dragleave', function (e) { e.preventDefault(); zone.className = 'drop'; });
   zone.addEventListener('drop', function (e) {
     e.preventDefault(); zone.className = 'drop';
-    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+    if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files, null);
   });
   document.addEventListener('click', function (e) {
     var d = el('gsres');

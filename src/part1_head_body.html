@@ -26,6 +26,33 @@
   .drop:hover, .drop.over { border-color:var(--bw-blue); background:#EAF2F8; transform:translateY(-1px); }
   .drop .big { font-size:18px; font-weight:700; color:var(--bw-blue); }
   .drop .small { font-size:13px; color:var(--bw-mid); margin-top:8px; line-height:1.6; }
+  .up-actions { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:18px 0 6px; }
+  .upbtn { font:inherit; font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer; border:2px solid var(--bw-blue); }
+  .upbtn.one { background:#fff; color:var(--bw-blue); }
+  .upbtn.one:hover { background:#EAF2F8; }
+  .upbtn.many { background:var(--bw-blue); color:#fff; }
+  .upbtn.many:hover { filter:brightness(1.12); }
+  .up-hint { font-size:12px; color:var(--bw-mid); margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
+  .up-hint b { color:var(--bw-blue); }
+  .mmode.mnodata { opacity:.55; }
+
+  /* Modellübergreifender Fokus (Mehrfach-Modus) */
+  .modelband { border:1px solid var(--border); border-left:4px solid var(--bw-blue); background:#F7FAFC; border-radius:8px; padding:10px 12px; margin:10px 0 14px; }
+  .mb-row { font-size:13px; margin:4px 0; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .mb-note { color:var(--bw-mid); font-size:12px; }
+  .mchip { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px; background:#E6EEF4; color:var(--bw-blue); border:1px solid #C6D8E4; white-space:nowrap; }
+  .mchip-m1 { background:#E6EEF4; }
+  .mchip-m2 { background:#FDF0E3; color:#8A4B00; border-color:#F0D7B8; }
+  .mchip-m3 { background:#E9F3EA; color:#1E5B2A; border-color:#C6E0C9; }
+  .mb-jump { padding-top:4px; gap:8px; }
+  .mb-cross { margin-top:8px; padding-top:8px; border-top:1px dashed var(--border); font-size:13px; }
+  .mb-table { margin-top:8px; }
+  tr.xmodel { background:#FFF8EE; }
+  tr.xmodel:hover { background:#FDEFDC; }
+  .xbadge { display:inline-block; font-size:10px; font-weight:700; color:#8A4B00; background:#FBE4C9; border-radius:8px; padding:1px 6px; }
+  .dir-out { color:#1E5B2A; font-weight:700; font-size:12px; }
+  .dir-in { color:#8A4B00; font-weight:700; font-size:12px; }
+  .mhint { display:inline-block; font-size:11px; font-weight:400; color:var(--bw-mid); margin-left:10px; }
 
   /* Cockpit / Modellbar & Globale Suche (Search-First!) */
   #modellbar { background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; box-shadow:0 2px 10px rgba(0,68,113,.06); }
@@ -389,7 +416,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>✏️ ADMBw QEA Editor <span class="badge-v">v5.0 · Edit</span></h1>
+      <h1>✏️ ADMBw QEA Editor <span class="badge-v">v6.0 · Multi-Architektur</span></h1>
       <p>QEA-Architekturen verstehen <b>und bearbeiten</b>: Pakete &amp; Sichten erkunden, im Graphen analysieren, Verbindungen nachweisen, Elemente/Pakete/Sichten/Beziehungen ändern und als neue .qea speichern — 100&nbsp;% lokal im Browser, ohne KI.</p>
     </div>
   </div>
@@ -398,12 +425,17 @@
   <div id="printmeta"></div>
   <div id="upload">
     <div class="drop" id="dropzone">
-      <div class="big">📂 QEA- / EAPX-Architekturdatenmodell hier ablegen oder klicken</div>
+      <div class="big">📂 Architekturdatei(en) hier ablegen oder klicken</div>
       <div class="small">
         <b>Der Analyse-Werkzeugkasten für Architekturen:</b> Pakete &amp; Sichten erkunden, Gesamtzusammenhang im Graph analysieren, Verbindungen zweier Elemente nachweisen — <b>ohne KI, ohne Installation, ohne Namenskonventionen</b>.<br>
         Mit Sofort-Suche und <b>1-Klick-Export jeder Sicht als PNG oder Excel (.xlsx)</b>.<br>
         <span style="color:#004471;font-weight:600">Datenschutz: 100 % Offline-Verarbeitung im Browser — keine Daten verlassen Ihren Rechner.</span>
       </div>
+      <div class="up-actions">
+        <button type="button" class="upbtn one" onclick="pickFiles(false)">📄 Eine Architektur laden</button>
+        <button type="button" class="upbtn many" onclick="pickFiles(true)">🗂️ Mehrere Architekturen verschmelzen</button>
+      </div>
+      <div class="up-hint" id="uphint">Mehrere Dateien werden zu <b>einer Landkarte</b> verschmolzen: gleichnamige Elemente gleichen Stereotyps teilen sich einen Knoten — dadurch werden <b>modellübergreifende Zusammenhänge</b> sichtbar.</div>
       <input type="file" id="file" accept=".qea,.eapx,.qeax,.sqlite" multiple style="display:none">
     </div>
   </div>
@@ -514,7 +546,7 @@
   </div>
 </main>
 <footer>
-  ADMBw QEA Editor v5.0 (Edit-Edition, Testversion) ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
+  ADMBw QEA Editor v6.0 (Edit-Edition, Testversion) ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
