@@ -1,0 +1,7 @@
+_uploads_*
+_shot_*
+stage_*.js
+test_harness*.js
+__pycache__/
+*.pyc
+.DS_Store
