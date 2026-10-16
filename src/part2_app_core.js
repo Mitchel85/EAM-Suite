@@ -24,6 +24,7 @@ var MODEL_DB = null, MODEL_OBJS = {}, MODEL_PKG = {}, MODEL_DIAGS = [], MODEL_TA
 var CONNMAP = {};                 /* Nachschlagetabelle: Beziehungs-Kennung -> Beziehung (alle Modelle) */
 var PKG_CANDS = [];               /* Kandidaten-IDs der Pakete eines Aufbaus (Umrechnung) */
 var ELEMFOCUS = null;             /* Mehrfach-Modus: Fokus auf Vorkommen eines Elements in Modell n */
+var MERGE_CANDS = [];             /* offene Zusammenführungs-Vorschläge: {from, to, level} */
 var G = {
   vp: null, built: false, baseNodes: [], baseLinks: [], viewNodes: [], viewLinks: [],
   nbr: {}, pos: {}, focus: null, fset: null, vb: null, simTimer: null,
@@ -690,56 +691,270 @@ function objKey(raw) { return keyFor('o', raw, MODEL_N); }
 function diagKey(raw) { return keyFor('d', raw, MODEL_N); }
 function connKey(raw) { return keyFor('c', raw, MODEL_N); }
 
-/* Dieses Modell in die verschmolzene Landkarte einarbeiten (nach dem Aufbau) */
+/* ================================================================
+   Zusammenführungs-Kriterien (Match-Prinzipien)
+   Der Benutzer wählt an-/ab, WIE Elemente zwischen Architekturen
+   wiedererkannt werden. Jedes Kriterium kann einzeln ein- oder
+   ausgeschaltet werden — allein oder kombiniert.
+   ================================================================ */
+var SEM_MODE = true;                 /* „Semantik einbeziehen" (Kontrollkästchen) */
+var MATCH_PRINCIPLE = { guid: true, name: true, alias: false };  /* aktive Kriterien */
+
+/* Text normalisieren: Akzente/Umlaute auflösen, Sonderzeichen zu Leerzeichen */
+function semNorm(s) {
+  s = String(s == null ? '' : s);
+  if (s.normalize) {
+    s = s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  }
+  s = s.replace(/ß/gi, 'ss').replace(/æ/gi, 'ae').replace(/ø/gi, 'o');
+  s = s.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  return s.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ');
+}
+
+/* Stufe 2: Schreibvarianten entfernen.
+   Wichtig: Klammer-Zusätze und Präfixe MÜSSEN vor dem Normalisieren entfernt
+   werden — semNorm wandelt „-“ und „:“ in Leerzeichen um, danach greifen die
+   Muster nicht mehr. */
+function semLoose(s) {
+  var t = String(s == null ? '' : s);
+  t = t.replace(/\s*\([^)]*\)/g, ' ');                     /* Klammerzusätze: „(Basisverfahren)“ */
+  t = t.replace(/\s*\[[^\]]*\]/g, ' ');                    /* eckige Zusätze */
+  t = t.replace(/^\s*[A-Za-z]{1,3}\s*\d+\s*[:.\-–—]\s*/, '');  /* Präfixe: „P1 : “, „C5 –“ */
+  t = t.replace(/\s*[-–—]\s*(Entwurf|Draft|Neu|New|Alt|Old|V\d+)\b/gi, ' ');
+  t = t.replace(/\s+\b(v|version)\s*\d+([.\d]*)\b/gi, ' ');
+  t = t.replace(/\s*[-–—]\s*(20\d{2})[.\-/](0?\d{1,2})[.\-/]?(0?\d{1,2})?\s*$/, ' ');  /* Jahres-/Versionsanhängsel */
+  return semNorm(t);
+}
+
+/* Mindestlänge, damit sehr kurze Namen nicht über Kurzformen zusammenfallen */
+function semUsable(t) { return t && t.length >= 4; }
+
+/* Zusatzmaterial eines Elements einsammeln (Tags, Alias, Notiz) */
+function semMeta(k) {
+  var o = OBJS[k] || {};
+  var out = { ids: [], name: '', alias: '', note: '' };
+  out.name = String(o.name || '');
+  out.alias = semNorm(o.alias || '');
+  out.note = semNorm(o.note || '');
+  var t = TAGS[k] || [];
+  for (var i = 0; i < t.length; i++) {
+    var p = semNorm(t[i].p), v = String(t[i].v == null ? '' : t[i].v).trim();
+    if (!v) continue;
+    /* Identität: URI/UUID/GUID-Kennungen (Referenzstandard-Stempel) */
+    if (/uri|uuid|guid|identifier/.test(p) && v.length >= 6) out.ids.push(semNorm(v));
+  }
+  return out;
+}
+
+/* Schlüssel eines Elements für eine gegebene Stufe. null = kein Schlüssel */
+function semKey(o, meta, level) {
+  var nm = String(o.name || '');
+  var st = semNorm(o.st || '');
+  if (level === 1) {
+    var t1 = semNorm(nm);
+    return { k: t1 + '\u0001' + st, label: 'exakt', name: t1 };
+  }
+  /* Ab Stufe 2: Schreibvariante als Namensbasis; exakter Name bleibt zusätzlich gueltig */
+  var tl = semLoose(nm);
+  if (!semUsable(tl)) return null;
+  if (level === 3) {
+    /* Identität vor Namensvergleich */
+    if (meta && meta.ids.length) return { k: '\u0001id\u0001' + meta.ids[0], label: 'identität', name: tl };
+    return { k: tl + '\u0001' + st, label: 'schreibweise', name: tl };
+  }
+  if (level === 4) {
+    if (meta && meta.ids.length) return { k: '\u0001id\u0001' + meta.ids[0], label: 'identität', name: tl };
+    var al = meta && semUsable(meta.alias) ? meta.alias : '';
+    if (al) return { k: al + '\u0001' + st, label: 'alias', name: al };
+    return { k: tl + '\u0001' + st, label: 'schreibweise', name: tl };
+  }
+  return { k: tl + '\u0001' + st, label: 'schreibweise', name: tl };
+}
+
+/* Treffer zweier Elemente nach den AKTIVEN Kriterien.
+   Jedes Kriterium (GUID, Name, Alias) kann einzeln an-/abgewählt werden.
+   Ein Kriterium zählt nur, wenn es AKTIV ist UND beidseitig nicht-leer.
+   Ein leerer Schlüssel darf NIE als Treffer gelten. */
+function semMatch(a, b) {
+  if (!a || !b) return false;
+  var P = MATCH_PRINCIPLE;
+  var i, j;
+
+  /* 1. Über GUID (URI/UUID) — nur wenn aktiv und beidseitig vorhanden */
+  if (P.guid) {
+    var ai = a.ids || [], bi = b.ids || [];
+    for (i = 0; i < ai.length; i++) {
+      if (!ai[i]) continue;
+      for (j = 0; j < bi.length; j++) { if (bi[j] && ai[i] === bi[j]) return true; }
+    }
+  }
+
+  /* 2. Über den Namen — nur wenn aktiv */
+  if (P.name) {
+    var an = semNorm(a.name || ''), bn = semNorm(b.name || '');
+    if (an && bn && an === bn) return true;
+  }
+
+  /* 3. Über den Alias — nur wenn aktiv und beidseitig brauchbar */
+  if (P.alias) {
+    var al = semNorm(a.alias || ''), bl = semNorm(b.alias || '');
+    if (al && bl && al === bl) return true;
+  }
+
+  return false;
+}
+
+function semLevelLabel() {
+  var P = MATCH_PRINCIPLE;
+  if (!SEM_MODE) return 'ohne Zusammenführung';
+  var parts = [];
+  if (P.guid) parts.push('GUID');
+  if (P.name) parts.push('Name');
+  if (P.alias) parts.push('Alias');
+  if (!parts.length) return 'keine Kriterien aktiv';
+  return 'Über ' + parts.join(' + ');
+}
+
 function finalizeMerge(n) {
   var k, o, i;
   if (!MULTI_MODE) return;
   if (n <= 1) {
-    /* Modell 1: Schlüsselregister für die Fusion aufbauen */
+    /* Modell 1: Schlüsselregister für die Fusion aufbauen (alle Stufen vorbereiten) */
     for (k in OBJS) {
       if (!OBJS.hasOwnProperty(k)) continue;
       o = OBJS[k];
       o.m = 1;
       o.models = [1];
+      o.sem = semMeta(k);
       if (o.name && o.type !== 'Package') MODEL_KEYMAP[mergeKey(o.name, o.st)] = k;
     }
     if (MODEL_FILES[0]) MODEL_FILES[0].obj = Object.keys(OBJS).length;
     return;
   }
-  /* Modell 2+: dieses Modell in die Landkarte einarbeiten */
-  var oMap = {}, gO = {}, cntTotal = 0, cntMerged = 0, cntFresh = 0;
+  /* Modell 2+: Zusatzmaterial sammeln und Kandidatenpaare bestimmen.
+     Die eigentliche Zusammenführung passiert in commitMerge() — vorher zeigt
+     die Vorschau, was zusammengelegt würde. */
+  var cands = [];
   for (k in OBJS) {
     if (!OBJS.hasOwnProperty(k)) continue;
     o = OBJS[k];
-    if (Number(o.m) !== Number(n)) { gO[k] = o; continue; }
-    cntTotal++;
-    var mk = (o.name && o.type !== 'Package') ? mergeKey(o.name, o.st) : null;
-    var ex = mk ? MODEL_KEYMAP[mk] : null;
-    if (ex != null && gO[ex]) {
-      /* Fusion: identisches Element (Name + Stereotype) teilt sich den Knoten */
+    if (Number(o.m) !== Number(n)) continue;
+    if (!o.name || o.type === 'Package') continue;
+    o.sem = semMeta(k);
+  }
+  var nHost = 0, nFresh = 0;
+  for (k in OBJS) {
+    if (!OBJS.hasOwnProperty(k)) continue;
+    o = OBJS[k];
+    if (Number(o.m) !== Number(n)) continue;
+    if (!o.name || o.type === 'Package') { nFresh++; continue; }
+    var host = SEM_MODE ? findMergeHost(o, n) : null;
+    if (host) cands.push({ from: k, to: host });
+    else nFresh++;
+  }
+  MERGE_CANDS = MERGE_CANDS.concat(cands);
+  var mf = MODEL_FILES[n - 1];
+  if (mf) { mf.cands = cands.length; mf.fresh = nFresh; mf.merged = cands.length; }
+  /* Vollzogene Fusionen der bereits festgeschriebenen Modelle nicht erneut anbieten */
+  MERGE_CANDS = MERGE_CANDS.filter(function (c) { return OBJS[c.from] && OBJS[c.to]; });
+}
+
+/* Sucht für ein Element des Modells n einen bereits vorhandenen Trägerknoten.
+   Stufen werden „abgeschält": Stufe 1 immer, dann 2, dann 3, dann 4.
+   Ergebnis wird am Element als sem.hit vermerkt (erreichte Stufe).
+
+   Hinweis zu „taken": Ein M1-Knoten darf durchaus mehrere Elemente desselben
+   neuen Modells aufnehmen (z. B. drei Testarchitektur-Projekte, die in MASC ein Element
+   abbilden). Verhindert werden muss nur, dass sich die ZIELE überschneiden —
+   also dass zwei verschiedene M1-Knoten beide als Träger desselben Elements
+   gewählt werden können. Deshalb wird pro Quell-Element der erste Treffer
+   genommen, nicht der Zielknoten verbraucht. */
+function findMergeHost(o, n) {
+  var k, c;
+  for (k in OBJS) {
+    if (!OBJS.hasOwnProperty(k)) continue;
+    c = OBJS[k];
+    if (c === o || Number(c.m) === Number(n)) continue;
+    if (!c.name || c.type === 'Package') continue;
+    if (!c.sem) c.sem = semMeta(k);
+    if (semMatch(o.sem, c.sem)) return k;
+  }
+  return null;
+}
+/* Vorschau: wie viele Elemente würden zusammengelegt?
+   Zählt Elemente, die in einem AKTIVEN Kriterium übereinstimmen. */
+function semPreview(n) {
+  var res = { total: 0, geteilt: 0 };
+  var k;
+  for (k in OBJS) {
+    if (!OBJS.hasOwnProperty(k)) continue;
+    var o = OBJS[k];
+    if (Number(o.m) !== Number(n) || !o.name || o.type === 'Package') continue;
+    res.total++;
+    if (!o.sem) o.sem = semMeta(k);
+    if (findMergeHost(o, n)) res.geteilt++;
+  }
+  return res;
+}
+
+/* ================================================================
+   commitMerge(n): vollzieht die Zusammenführung für Modell n.
+   Ohne Argument werden alle offenen Vorschläge (MERGE_CANDS) umgesetzt.
+   skip: Objekt {elementKey: true} — Elemente, die der Nutzer einzeln
+   ausgenommen hat („einzeln behalten").
+   ================================================================ */
+function commitMerge(n, skip) {
+  if (!MULTI_MODE) return { merged: 0, fresh: 0 };
+  var k, o, i;
+  var list = MERGE_CANDS;
+  if (n != null) list = MERGE_CANDS.filter(function (c) {
+    var f = OBJS[c.from];
+    return f && Number(f.m) === Number(n);
+  });
+  var oMap = {}, gO = {}, cntMerged = 0, cntFresh = 0;
+
+  /* Alle vorhandenen Knoten übernehmen */
+  for (k in OBJS) { if (OBJS.hasOwnProperty(k)) gO[k] = OBJS[k]; }
+
+  var map = {};
+  for (i = 0; i < list.length; i++) map[list[i].from] = list[i];
+
+  var nModel = (n != null) ? Number(n) : (MODEL_N || 1);
+  for (k in gO) {
+    if (!gO.hasOwnProperty(k)) continue;
+    o = gO[k];
+    if (Number(o.m) !== nModel) continue;
+    var c = map[k];
+    /* Mehrere Elemente dieses Modells dürfen denselben Trägerknoten belegen
+       (z. B. drei Projekte, die in der anderen Architektur ein Element bilden).
+       Jedes Quell-Element wird genau einmal verarbeitet. */
+    if (c && !(skip && skip[k])) {
+      var ex = c.to;
+      if (!gO[ex]) continue;
       oMap[k] = ex;
       MULTI_SRC[k] = ex;
       cntMerged++;
       var host = gO[ex];
       host.models = host.models || [1];
-      if (host.models.indexOf(n) < 0) host.models.push(n);
+      if (host.models.indexOf(nModel) < 0) host.models.push(nModel);
       if (TAGS[k]) { TAGS[ex] = (TAGS[ex] || []).concat(TAGS[k]); delete TAGS[k]; }
-      /* Quell-Identität dieses Vorkommens merken (für Sprung „gleiches Element in M2“) */
       host.srcs = host.srcs || {};
       if (host.srcs[1] == null && host.localId != null) host.srcs[1] = String(host.localId);
-      host.srcs[n] = String(o.localId != null ? o.localId : '');
+      host.srcs[nModel] = String(o.localId != null ? o.localId : '');
       host.mnames = host.mnames || {};
-      var mf = MODEL_FILES[n - 1];
-      if (mf) host.mnames[n] = mf.name;
+      var mf = MODEL_FILES[nModel - 1];
+      if (mf) host.mnames[nModel] = mf.name;
+      /* Welches Kriterium hat den Treffer erbracht? Am Trägerknoten dokumentieren */
+      host.matchkind = host.matchkind || 'name';
+      if (o.sem && o.sem.kind) host.matchkind = o.sem.kind;
+      if (host.matchkind !== 'name' && o.name) host.altname = String(o.name);
+      delete gO[k];
     } else {
-      oMap[k] = k;
-      if (mk) MODEL_KEYMAP[mk] = k;
-      o.models = [n];
+      o.models = [nModel];
       cntFresh++;
-      gO[k] = o;
     }
   }
-  OBJS = gO;
+
   /* Beziehungen, Sicht-Platzierungen und Sicht-Zuordnungen nachziehen */
   for (i = 0; i < CONS.length; i++) {
     if (oMap[CONS[i].a] != null) CONS[i].a = oMap[CONS[i].a];
@@ -760,7 +975,7 @@ function finalizeMerge(n) {
   }
   /* Paket-Listen dieses Modells bereinigen (fusionierte Elemente auf den Zielknoten umbiegen) */
   for (k in PKG) {
-    if (!PKG.hasOwnProperty(k) || Number(PKG[k].m) !== Number(n)) continue;
+    if (!PKG.hasOwnProperty(k) || Number(PKG[k].m) !== nModel) continue;
     var lst = PKG[k].objs, nw = [], seen = {};
     for (i = 0; i < lst.length; i++) {
       var oid2 = String(lst[i].id);
@@ -771,9 +986,17 @@ function finalizeMerge(n) {
     }
     PKG[k].objs = nw;
   }
-  /* Zählwerte für den Fusionsbericht festhalten */
-  if (MODEL_FILES[n - 1]) { MODEL_FILES[n - 1].obj = cntTotal; MODEL_FILES[n - 1].merged = cntMerged; MODEL_FILES[n - 1].fresh = cntFresh; }
+  /* Verworfene Kennungen auch aus dem Schlüsselregister entfernen */
+  for (k in oMap) {
+    if (!oMap.hasOwnProperty(k)) continue;
+    var oo = OBJS[k];
+    if (oo && oo.name) delete MODEL_KEYMAP[mergeKey(oo.name, oo.st)];
+  }
+  OBJS = gO;
+  recountPkgs();
+  return { merged: cntMerged, fresh: cntFresh };
 }
+
 
 function loadQea(buffer, name) {
   if (SINGLE && !MULTI_MODE) {
@@ -840,6 +1063,7 @@ function resetModelData() {
   OBJS = {}; CONS = []; PKG = {}; PKG_ROOTS = []; PKG_OPEN = {};
   DIAGS = []; DIAGMAP = {}; DIAGOBJ = {}; DIAGLINK = {}; OBJ_DIAGS = {}; TAGS = {};
   MULTI_SRC = {};
+  MERGE_CANDS = [];
   MODEL_N = 0; MODEL_FILES = []; MODEL_KEYMAP = {}; CONNMAP = {};
   MODEL_DBS = {}; MODEL_DB = null; MODEL_OBJS = {}; MODEL_PKG = {}; MODEL_DIAGS = []; MODEL_TAGS = {};
 }
@@ -921,7 +1145,14 @@ function addModelToMerge(buffer, name) {
   } else {
     renderPkgTree();
     showView('diags');
-    toast('Modell ' + n + ' verschmolzen: ' + esc(shortFileName(name)) + ' · ' + MODEL_FILES.length + ' Modelle geladen');
+    /* Neu erkannte Zusammenführungen zur Prüfung anbieten */
+    var offen = MERGE_CANDS.filter(function (c) { return OBJS[c.from] && OBJS[c.to]; });
+    if (SEM_MODE && offen.length) {
+      openMergePreview();
+    } else {
+      toast('Modell ' + n + ' geladen: ' + esc(shortFileName(name)) + ' · ' + MODEL_FILES.length + ' Architekturen'
+        + (SEM_MODE ? ' (keine Zusammenführungen erkannt)' : ' (ohne Zusammenführung)'));
+    }
   }
 }
 
@@ -958,20 +1189,131 @@ function renderMergeBar() {
   var bar = el('mergebar');
   if (!bar) return;
   if (!MULTI_MODE) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  var h = ['<div class="mg-inner"><span class="mg-lead">🗂️ <b>' + MODEL_FILES.length + ' Architektur(en)</b> zu einer Landkarte verschmolzen</span><span class="mg-files">'];
-  for (var i = 0; i < MODEL_FILES.length; i++) {
+  var i;
+  var offen = MERGE_CANDS.filter(function (c) { return OBJS[c.from] && OBJS[c.to]; });
+
+  var h = ['<div class="mg-inner">'];
+  h.push('<span class="mg-lead">🗂️ <b>' + MODEL_FILES.length + ' Architekturen</b> geladen'
+    + (SEM_MODE ? ' · Zusammenführung: <b>' + esc(semLevelLabel()) + '</b>' : ' · <b>ohne Zusammenführung</b>') + '</span>');
+  h.push('<span class="mg-files">');
+  for (i = 0; i < MODEL_FILES.length; i++) {
     var f = MODEL_FILES[i];
     h.push('<span class="mg-file" title="' + esc(f.name) + '"><b>M' + f.n + '</b> ' + esc(shortFileName(f.name)) +
       '<em>' + f.pkg + ' Pakete · ' + f.diag + ' Sichten · ' + f.obj + ' Elemente · ' + f.con + ' Beziehungen</em></span>');
   }
   h.push('</span>');
   h.push('<span class="mg-act">');
-  h.push('<button class="btn-sm" onclick="el(\'file\').click()">＋ Weitere Datei laden</button>');
+  h.push('<button class="btn-sm" onclick="pickFiles(true)">＋ Weitere Datei laden</button>');
+  if (offen.length) h.push('<button class="btn-sm pri" onclick="openMergePreview()" title="Vorschau: welche Elemente werden zusammengelegt?">👁 ' + fmt(offen.length) + ' Zusammenführungen prüfen</button>');
   h.push('<button class="btn-sm" onclick="openMergeReport()" title="Was wurde zusammengeführt?">🔍 Fusionsbericht</button>');
-  h.push('<button class="btn-sm amber" onclick="exitMultiMode()" title="Verschmelzung auflösen, nur das erste Modell behalten">✕ Verschmelzung auflösen</button>');
+  h.push('<button class="btn-sm amber" onclick="exitMultiMode()" title="Verschmelzung auflösen, nur das erste Modell behalten">✕ Auflösen</button>');
   h.push('</span></div>');
+
+  if (offen.length) {
+    h.push('<div class="mg-preview"><b>' + fmt(offen.length) + '</b> Element(e) wurden über die Dateigrenzen hinweg erkannt '
+      + '(Kriterien: ' + esc(semLevelLabel()) + ') &nbsp;<span class="dim">— noch nicht zusammengelegt. Prüfen und dann bestätigen.</span></div>');
+  } else if (MODEL_FILES.length > 1) {
+    h.push('<div class="mg-preview dim">Keine weiteren Zusammenführungen erkannt. '
+      + (SEM_MODE ? 'Prüfen Sie, ob weitere Kriterien aktiviert sind.' : 'Es ist „ohne Zusammenführung" gewählt.') + '</div>');
+  }
+
+  /* Kriterien dauerhaft zugänglich machen (auch nach dem Laden) */
+  var P = MATCH_PRINCIPLE;
+  h.push('<div class="mg-crit"><b>Kriterien:</b> '
+    + '<label class="critbox"><input type="checkbox" ' + (P.guid ? 'checked' : '') + ' onchange="setMatchPrinciple(\'guid\', this.checked)"> GUID</label>'
+    + '<label class="critbox"><input type="checkbox" ' + (P.name ? 'checked' : '') + ' onchange="setMatchPrinciple(\'name\', this.checked)"> Name</label>'
+    + '<label class="critbox"><input type="checkbox" ' + (P.alias ? 'checked' : '') + ' onchange="setMatchPrinciple(\'alias\', this.checked)"> Alias</label>'
+    + ' &nbsp;<span class="dim">Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen.</span></div>');
+
   bar.innerHTML = h.join('');
   bar.style.display = 'block';
+}
+
+/* Vorschau-Dialog: welche Elemente würden zusammengelegt, mit Einzelabwahl.
+   Gruppiert nach dem Kriterium, das den Treffer erbracht hat. */
+function openMergePreview() {
+  var offen = MERGE_CANDS.filter(function (c) { return OBJS[c.from] && OBJS[c.to]; });
+  if (!offen.length) { toast('Keine offenen Zusammenführungen.'); return; }
+  var by = { guid: [], name: [], alias: [] }, i;
+  for (i = 0; i < offen.length; i++) {
+    var c = offen[i], f = OBJS[c.from], t = OBJS[c.to];
+    if (!f || !t) continue;
+    var kind = 'name';
+    if (MATCH_PRINCIPLE.guid && f.sem && t.sem) {
+      var fi = f.sem.ids || [], ti = t.sem.ids || [], found = false;
+      for (var x = 0; x < fi.length && !found; x++) for (var y = 0; y < ti.length && !found; y++) if (fi[x] && fi[x] === ti[y]) found = true;
+      if (found) kind = 'guid';
+    }
+    if (kind === 'name' && MATCH_PRINCIPLE.alias && f.sem && t.sem && f.sem.alias && t.sem.alias && semNorm(f.sem.alias) === semNorm(t.sem.alias)) kind = 'alias';
+    by[kind].push(c);
+  }
+  var h = ['<div style="font-size:12.5px">'];
+  h.push('<p style="margin:0 0 10px 0">Diese Elemente aus den neu geladenen Architekturen wurden in bereits vorhandenen Architekturen <b>wiedererkannt</b>. '
+    + 'Bestätigen Sie die Zusammenführung, damit sie sich einen Knoten teilen — dann werden auch <b>Beziehungen über die Architekturgrenze</b> sichtbar. '
+    + 'Nehmen Sie Häkchen heraus, wenn ein Element bewusst eigenständig bleiben soll.</p>');
+  var titel = { guid: 'Erkannt über die GUID', name: 'Erkannt über den Namen', alias: 'Erkannt über den Alias' };
+  ['guid', 'name', 'alias'].forEach(function (kind) {
+    var list = by[kind];
+    if (!list.length) return;
+    h.push('<h3 style="margin:14px 0 6px 0">' + esc(titel[kind]) + ' (' + list.length + ')</h3>');
+    h.push('<table class="data"><thead><tr><th style="width:34px"><input type="checkbox" checked onchange="mergePreviewAll(this)"></th><th>Element in der neuen Architektur</th><th>zusammengelegt mit</th><th>Architekturen</th></tr></thead><tbody>');
+    for (i = 0; i < list.length && i < 500; i++) {
+      var c2 = list[i], f2 = OBJS[c2.from], t2 = OBJS[c2.to];
+      if (!f2 || !t2) continue;
+      h.push('<tr><td><input type="checkbox" class="mp-ck" data-k="' + esc(c2.from) + '" checked></td>'
+        + '<td><b>' + esc(f2.name || '') + '</b>' + (semNorm(f2.name) !== semNorm(t2.name) ? ' <span class="gs-meta">(neu)</span>' : '') + '</td>'
+        + '<td>' + esc(t2.name || '') + (semNorm(f2.name) !== semNorm(t2.name) ? ' <span class="gs-meta">(vorhanden)</span>' : '') + '</td>'
+        + '<td><span class="mchip mchip-m' + (f2.m || 2) + '">M' + (f2.m || 2) + '</span> → <span class="mchip mchip-m' + (t2.m || 1) + '">M' + (t2.m || 1) + '</span></td></tr>');
+    }
+    h.push('</tbody></table>');
+    if (list.length > 500) h.push('<div class="hint">… ' + (list.length - 500) + ' weitere.</div>');
+  });
+  h.push('</div>');
+  openModal('👁 Zusammenführungen prüfen (' + offen.length + ')',
+    h.join(''),
+    '<button class="btn-sm pri" onclick="applyMergePreview()">✔ Ausgewählte zusammenlegen</button>'
+    + ' <button class="btn-sm" onclick="skipAllMerge()">Ohne Zusammenführung fortfahren</button>'
+    + ' <button class="btn-sm" onclick="modalClose()">Abbrechen</button>');
+}
+
+function mergePreviewAll(src) {
+  var cks = document.querySelectorAll('#editmodal .mp-ck');
+  for (var i = 0; i < cks.length; i++) cks[i].checked = !!src.checked;
+}
+
+/* Auswahl aus dem Vorschau-Dialog anwenden */
+function applyMergePreview() {
+  var cks = document.querySelectorAll('#editmodal .mp-ck');
+  var skip = {}, n = 0;
+  for (var i = 0; i < cks.length; i++) {
+    if (!cks[i].checked) { skip[cks[i].getAttribute('data-k')] = true; n++; }
+  }
+  modalClose();
+  var res = commitMerge(null, skip);
+  renderMergeBar();
+  renderAfterMerge();
+  toast('✅ <b>' + fmt(res.merged) + '</b> Element(e) zusammengelegt'
+    + (n ? ', <b>' + n + '</b> bewusst getrennt gehalten' : '') + '.');
+}
+
+function skipAllMerge() {
+  modalClose();
+  MERGE_CANDS = [];
+  renderMergeBar();
+  toast('Ohne Zusammenführung fortgefahren. Die Architekturen stehen nebeneinander zur Verfügung — Verbindungen über die Grenze bleiben unsichtbar.');
+}
+
+/* Nach einer Änderung der Landkarte alles neu zeichnen */
+function renderAfterMerge() {
+  try { computeStats(); } catch (e) { }
+  try { renderGrid(); } catch (e) { }
+  try { renderDiagsCatalog(); } catch (e) { }
+  try { renderQuickBar(); } catch (e) { }
+  try { renderPkgTree(); } catch (e) { }
+  var totPkg = Object.keys(PKG).length, totObj = Object.keys(OBJS).length, totDiag = DIAGS.length, totCon = CONS.length;
+  try { renderModelStats(totPkg, totDiag, totObj, totCon); } catch (e) { }
+  if (el('cnt-path')) el('cnt-path').textContent = fmt(totCon);
+  PATH_ADJ = null; PATH_COMP = null;
 }
 
 function openMergeReport() {

@@ -687,6 +687,12 @@ function coModelBlock(o, oid) {
     h.push('<span class="mchip mchip-m' + models[i] + '" title="Element ist in dieser Architektur enthalten">' + esc(mLabelNo(models[i])) + '</span> ');
   }
   if (models.length > 1) h.push('<span class="mb-note">→ in <b>' + models.length + '</b> Architekturen vorhanden (gemeinsames Element)</span>');
+  /* Welches Kriterium hat den Treffer erbracht? */
+  if (o.matchkind && o.matchkind !== 'name') {
+    var kindTxt = { guid: 'Über die GUID erkannt', alias: 'Über den Alias erkannt' };
+    h.push('<span class="semlvl" title="Kriterium, das über die Architekturgrenze hinweg zum Treffer führte">'
+      + esc(kindTxt[o.matchkind] || o.matchkind) + (o.altname ? ': „' + esc(o.altname) + '“' : '') + '</span>');
+  }
   h.push('</div>');
 
   /* Sprung zu den Quell-Vorkommen */
@@ -1775,6 +1781,56 @@ function showView(v, activeTabOverride) {
     if (tb) tb.className = 'mtab' + (tabs[i] === tabKey ? ' on' : '');
   }
   updatePrintMeta();
+}
+
+/* ---------- Zusammenführungs-Kriterien: Bedienung ---------- */
+function setSemMode(on) {
+  SEM_MODE = !!on;
+  var w = document.querySelector('.semwrap');
+  if (w) w.className = SEM_MODE ? 'semwrap' : 'semwrap off';
+  updateSemNote();
+  if (MULTI_MODE && MODEL_FILES.length > 1) rebuildMergeCands();
+}
+
+/* Einzelnes Kriterium ein-/ausschalten */
+function setMatchPrinciple(which, on) {
+  if (which === 'guid') MATCH_PRINCIPLE.guid = !!on;
+  else if (which === 'name') MATCH_PRINCIPLE.name = !!on;
+  else if (which === 'alias') MATCH_PRINCIPLE.alias = !!on;
+  SEM_MODE = true;
+  var chk = el('semchk');
+  if (chk) chk.checked = true;
+  var w = document.querySelector('.semwrap');
+  if (w) w.className = 'semwrap';
+  updateSemNote();
+  if (MULTI_MODE && MODEL_FILES.length > 1) rebuildMergeCands();
+}
+
+function updateSemNote() {
+  var n = el('semnote');
+  if (!n) return;
+  if (!SEM_MODE) {
+    n.innerHTML = 'Die Architekturen werden nur <b>gegenübergestellt</b>: keine Elemente werden zusammengelegt, auch nicht bei identischem Namen. Verbindungen über die Architekturgrenze bleiben dadurch unsichtbar.';
+    return;
+  }
+  var P = MATCH_PRINCIPLE;
+  var aktiv = [];
+  if (P.guid) aktiv.push('GUID');
+  if (P.name) aktiv.push('Name');
+  if (P.alias) aktiv.push('Alias');
+  n.innerHTML = aktiv.length
+    ? 'Aktive Kriterien: <b>' + esc(aktiv.join(' und ')) + '</b>. Elemente werden zusammengelegt, wenn sie in einem der aktivierten Merkmale übereinstimmen. Beim Laden sehen Sie vorab, wie viele Elemente zusammengelegt würden, und können einzeln abwählen.'
+    : 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+}
+
+/* Vorschläge mit den aktuellen Kriterien neu bestimmen (ohne etwas zusammenzulegen) */
+function rebuildMergeCands() {
+  if (!MULTI_MODE) return;
+  MERGE_CANDS = [];
+  for (var n = 2; n <= MODEL_N; n++) {
+    finalizeMerge(n);
+  }
+  renderMergeBar();
 }
 
 /* ---------- Upload-Verdrahtung ---------- */

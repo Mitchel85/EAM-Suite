@@ -10,3 +10,11 @@ test_shots.js
 test_v60.js
 test_focus.js
 test_jump*.js
+test_v*.js
+test_cm*.js
+test_focus.js
+test_jump*.js
+test_v60.js
+test_v70.js
+test_v71.js
+test_v72.js
