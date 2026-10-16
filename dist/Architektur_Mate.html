@@ -595,7 +595,7 @@
   </div>
 </main>
 <footer>
-  <b>Architektur Mate v8.0</b> · Ihr Architekturgehilfe ·  · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung) · Farben gemäß ADMBw/NAFv4.
+  <b>Architektur Mate v8.0</b> · Ihr Architekturgehilfe · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>

@@ -193,5 +193,12 @@ Am einfachsten per **Issue** hier im Repository — gerne mit kurzer Beschreibun
 
 ---
 
-*Autor: Michael Estel · *
+*Autor: Michael Estel*
 *Enthält [sql.js](https://github.com/sql-js/sql.js) (MIT-Lizenz) — siehe `vendor/LICENSE-sql.js`.*
+
+## Rechtliches
+
+* **Keine Verbindung zu Sparx Systems.** Dieses Werkzeug ist ein unabhängiges, privat erstelltes Projekt. Es steht in keiner Verbindung zu Sparx Systems Pty Ltd., ist von dort **nicht** freigegeben oder zertifiziert und verwendet keine Logos oder Marken von Sparx Systems. Die Bezeichnungen „Sparx Systems", „Enterprise Architect" und „EA" werden ausschließlich **beschreibend** verwendet, um den Dateityp zu benennen, den dieses Werkzeug öffnet.
+* **Direkter Datenbankzugriff:** Das Werkzeug liest und schreibt `.qea`-Dateien direkt als SQLite-Datenbank. Die Original-Datei wird **nie** überschrieben — beim Speichern entsteht stets eine neue Datei (`*_bearbeitet_JJJJMMTT-HHMM.qea`).
+* **Hinweis zum Support:** Ein direkter Schreibzugriff auf die Datenbank ist von Sparx Systems nicht freigegeben. Ein beschädigtes Modell kann Auswirkungen auf einen bestehenden Wartungs- bzw. Supportvertrag haben. Bitte stets mit einer **Arbeitskopie** arbeiten und das Ergebnis in Enterprise Architect prüfen.
+* **Kein EA-Bestandteil:** Es werden keine Dateien, Bibliotheken, Lizenzschlüssel oder Programmbestandteile von Sparx Systems mitgeliefert oder umgangen.
