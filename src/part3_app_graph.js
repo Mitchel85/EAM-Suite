@@ -698,9 +698,9 @@ function renderDiagram(diag, host) {
   parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.round(W) + '" height="' + Math.round(H) + '" viewBox="0 0 ' + W + ' ' + H + '">');
   parts.push('<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#004471"/></marker></defs>');
 
-  var cmap = DB._cmap || {};
+  var cmap = CONNMAP;
   for (i = 0; i < links.length; i++) {
-    var cn = cmap[links[i].cid];
+    var cn = cmap[String(links[i].cid)];
     if (!cn) continue;
     var ra = rects[cn.a], rb = rects[cn.b];
     if (!ra || !rb || ra === rb) continue;
@@ -1677,20 +1677,27 @@ function wireUpload() {
   var zone = el('dropzone'), input = el('file');
   zone.onclick = function () { input.click(); };
   input.onchange = function () {
-    if (input.files && input.files[0]) {
-      var f = input.files[0];
-      var rd = new FileReader();
-      rd.onload = function () { loadQea(rd.result, f.name); };
-      rd.readAsArrayBuffer(f);
-    }
+    if (input.files && input.files.length) handleFiles(input.files);
   };
+  /* Dateien der Reihe nach einlesen (Mehrfach-Modus: nacheinander verschmelzen) */
   function handleFiles(files) {
-    if (files && files[0]) {
-      var f = files[0];
+    if (!files || !files.length) return;
+    var arr = [], i;
+    for (i = 0; i < files.length; i++) arr.push(files[i]);
+    var idx = 0;
+    (function next() {
+      if (idx >= arr.length) { input.value = ''; return; }
+      var f = arr[idx++];
       var rd = new FileReader();
-      rd.onload = function () { loadQea(rd.result, f.name); };
+      rd.onload = function () {
+        /* Einzelmodus nur, wenn der Nutzer den Mehrfach-Modus nicht gewählt hat
+           UND genau eine Datei kommt: dann ersetzt die Datei das Modell wie bisher. */
+        SINGLE = !MULTI_MODE && !(arr.length > 1);
+        loadQea(rd.result, f.name);
+        setTimeout(next, 60);
+      };
       rd.readAsArrayBuffer(f);
-    }
+    })();
   }
   zone.addEventListener('dragenter', function (e) { e.preventDefault(); zone.className = 'drop over'; });
   zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.className = 'drop over'; });

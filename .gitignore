@@ -5,3 +5,5 @@ test_harness*.js
 __pycache__/
 *.pyc
 .DS_Store
+*.qea
+test_shots.js

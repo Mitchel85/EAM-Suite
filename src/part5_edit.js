@@ -19,6 +19,10 @@ var EDIT = (function () {
   var changeId = 0;
   var srcBytes = null;
   var srcName = '';
+  var srcN = 1;              /* Dateinummer (Mehrfach-Modus) */
+  var dbRef = null;          /* SQLite-Handle der geladenen Datei (für den Schreibpfad) */
+  var srcCount = 0;          /* Anzahl geladener Dateien (Mehrfach-Modus) */
+  var srcArr = [];           /* je Datei: {bytes, name, n} */
   var sqlPromise = null;
   var formHandler = null;
   var _connSrcOid = null;
@@ -70,9 +74,9 @@ var EDIT = (function () {
   }
 
   /* ================= Rohdatenzugriff über den bestehenden Parser ================= */
-  function rowsOf(table) { try { return (DB && DB.rows) ? DB.rows(table) : []; } catch (e) { return []; } }
-  function findRow(table, keyCol, keyVal) {
-    var rows = rowsOf(table), i, v;
+  function rowsOf(table, db) { db = db || MODEL_DB; try { return (db && db.rows) ? db.rows(table) : []; } catch (e) { return []; } }
+  function findRow(table, keyCol, keyVal, db) {
+    var rows = rowsOf(table, db), i, v;
     for (i = 0; i < rows.length; i++) {
       v = qcol(rows[i], keyCol);
       if (v != null && String(v) === String(keyVal)) return rows[i];
@@ -81,12 +85,49 @@ var EDIT = (function () {
   }
   function rv(row, col) { return row ? qcol(row, col) : null; }
   function pkgIdForObject(oid) {
-    var r = findRow('t_object', 'Object_ID', oid);
+    oid = String(oid);
+    var o = OBJS[oid];
+    if (o && o.pkgId != null) return o.pkgId;   /* bereits globaler Paket-Schlüssel */
+    var g = groupOf(oid);
+    var r = findRow('t_object', 'Object_ID', g.l, g.db);
     if (!r) return null;
-    var g = s0(rv(r, 'ea_guid'));
-    if (!g) return null;
-    var p = findRow('t_package', 'ea_guid', g);
-    return p ? rv(p, 'Package_ID') : null;
+    var gn = s0(rv(r, 'ea_guid'));
+    if (!gn) return null;
+    var p = findRow('t_package', 'ea_guid', gn, g.db);
+    if (!p) return null;
+    var lok = rv(p, 'Package_ID');
+    return (g.n > 1) ? ('m' + g.n + '_p' + lok) : String(lok);
+  }
+
+  /* ================= Mehrfach-Modus: Kennung <-> Datei / lokale ID =================
+     groupOf(x):          {db, k, n, g, l} — Datei, Dateinummer, globale und lokale Kennung
+     Modell 1: unveränderte Original-Kennungen (z. B. "123").
+     Modell 2+: eigene Kennungen m2_o101 (Element), m2_p7 (Paket),
+                m2_d5 (Sicht), m2_c33 (Beziehung). */
+  function groupOf(x) {
+    x = String(x);
+    if (!MULTI_MODE) return { db: MODEL_DB, k: x, n: 1, g: x, l: x };
+    var p = parseG(x);
+    if (p) return { db: MODEL_DBS[p.n] || MODEL_DB, k: x, n: p.n, g: x, l: String(p.l) };
+    return { db: MODEL_DBS[1] || MODEL_DB, k: x, n: 1, g: x, l: x };
+  }
+  function normalizeToLocal(x) {
+    if (!MULTI_MODE) return String(x);
+    return groupOf(x).l;
+  }
+  /* Ausgabe-Zuordnung nach dem Verschmelzen neu aufbauen */
+  function rebase() { }
+
+  /* Gruppen-Schlüssel des Gegenübers einer Beziehung (Mehrfach-Modus) */
+  function gOfEnd(g, raw) {
+    var srcIsA = (String(g.g) === String(decAny(raw, 'Start_Object_ID')));
+    var other = Number(rv(raw, srcIsA ? 'End_Object_ID' : 'Start_Object_ID'));
+    if (!MULTI_MODE) return String(other);
+    return (g.n > 1) ? ('m' + g.n + '_o' + other) : String(other);
+  }
+  function decAny(raw, col) {
+    var pid = groupOf(String(rv(raw, col)));
+    return pid.l;
   }
 
   /* ================= ausstehende Vormerkung zu Objekt finden ================= */
@@ -238,9 +279,10 @@ var EDIT = (function () {
     oid = String(oid);
     var o = OBJS[oid];
     if (!o) return;
-    var raw = findRow('t_object', 'Object_ID', oid);
-    if (!raw) { toast('Elementzeile nicht gefunden.'); return; }
     var pend = findPending('el.set', 'el:' + oid);
+    var g0 = groupOf(oid);
+    var raw = findRow('t_object', 'Object_ID', g0.l, g0.db);
+    if (!raw) { toast('Elementzeile nicht gefunden.'); return; }
     var curName = s0(rv(raw, 'Name')), curSt = s0(rv(raw, 'Stereotype')), curAlias = s0(rv(raw, 'Alias'));
     var curStatus = s0(rv(raw, 'Status')), curNote = decNote(rv(raw, 'Note'));
     if (pend) {
@@ -270,7 +312,7 @@ var EDIT = (function () {
       t1 = diffLine('Notiz', decNote(rv(raw, 'Note')), nt); if (t1) { fields.Note = nt; subs.push(t1); }
       if (!keys(fields)) { toast('Keine Änderung.'); modalClose(); return; }
       if (!nm) { toast('Hinweis: Element ohne Namen kann in EA Probleme machen.'); }
-      var ch = { kind: 'el.set', key: 'el:' + oid, id: Number(oid), fields: fields, oldStereotype: s0(rv(raw, 'Stereotype')), label: 'Element „' + shortLabel(nm || o.name, 44) + '“', sub: subs.join('\n') };
+      var ch = { kind: 'el.set', key: 'el:' + oid, id: Number(groupOf(oid).l), oid: oid, srcNo: groupOf(oid).n, fields: fields, oldStereotype: s0(rv(raw, 'Stereotype')), label: 'Element „' + shortLabel(stripPrefix(nm) || o.nameBase || o.name, 44) + '“', sub: subs.join('\n') };
       modalClose(); q(ch);
     };
     openModal('✏️ Element bearbeiten', body, okFooter('Änderung vormerken'));
@@ -280,7 +322,8 @@ var EDIT = (function () {
   function pkgEdit(pid) {
     if (pid == null) return;
     var p = PKG[pid];
-    var raw = findRow('t_package', 'Package_ID', pid);
+    var g = groupOf(String(pid));
+    var raw = findRow('t_package', 'Package_ID', g.l, g.db);
     if (!p || !raw) { toast('Paket nicht gefunden.'); return; }
     var pend = findPending('pkg.set', 'pkg:' + pid);
     var curName = s0(rv(raw, 'Name')), curNotes = decNote(rv(raw, 'Notes'));
@@ -300,7 +343,7 @@ var EDIT = (function () {
       t1 = diffLine('Notiz', decNote(rv(raw, 'Notes')), nt); if (t1) { fields.Notes = nt; subs.push(t1); }
       if (!keys(fields)) { toast('Keine Änderung.'); modalClose(); return; }
       modalClose();
-      q({ kind: 'pkg.set', key: 'pkg:' + pid, id: Number(pid), fields: fields, label: 'Paket „' + shortLabel(nm || p.name, 44) + '“', sub: subs.join('\n') });
+      q({ kind: 'pkg.set', key: 'pkg:' + pid, id: Number(g.l), pkgId: pid, srcNo: g.n, fields: fields, label: 'Paket „' + shortLabel(stripPrefix(nm) || p.nameBase || p.name, 44) + '“', sub: subs.join('\n') });
     };
     openModal('✏️ Paket bearbeiten', body, okFooter('Änderung vormerken'));
   }
@@ -309,7 +352,8 @@ var EDIT = (function () {
   function diagEdit(diagId) {
     if (diagId == null) return;
     var d = DIAGMAP[diagId];
-    var raw = findRow('t_diagram', 'Diagram_ID', diagId);
+    var g = groupOf(String(diagId));
+    var raw = findRow('t_diagram', 'Diagram_ID', g.l, g.db);
     if (!d || !raw) { toast('Sicht nicht gefunden.'); return; }
     var pend = findPending('diag.set', 'diag:' + diagId);
     var curName = s0(rv(raw, 'Name')), curNotes = decNote(rv(raw, 'Notes'));
@@ -329,7 +373,7 @@ var EDIT = (function () {
       t1 = diffLine('Beschreibung', decNote(rv(raw, 'Notes')), nt); if (t1) { fields.Notes = nt; subs.push(t1); }
       if (!keys(fields)) { toast('Keine Änderung.'); modalClose(); return; }
       modalClose();
-      q({ kind: 'diag.set', key: 'diag:' + diagId, id: Number(diagId), fields: fields, label: 'Sicht „' + shortLabel(nm || d.name, 44) + '“', sub: subs.join('\n') });
+      q({ kind: 'diag.set', key: 'diag:' + diagId, id: Number(g.l), diagId: diagId, srcNo: g.n, fields: fields, label: 'Sicht „' + shortLabel(stripPrefix(nm) || d.nameBase || d.name, 44) + '“', sub: subs.join('\n') });
     };
     openModal('✏️ Sicht bearbeiten', body, okFooter('Änderung vormerken'));
   }
@@ -337,10 +381,12 @@ var EDIT = (function () {
   /* ================= Editor: Beziehung ================= */
   function connEdit(cid) {
     if (cid == null) return;
-    var raw = findRow('t_connector', 'Connector_ID', cid);
+    var g = groupOf(String(cid));
+    var db = g.db || MODEL_DB;
+    var raw = findRow('t_connector', 'Connector_ID', g.l, g.db);
     if (!raw) { toast('Beziehung nicht gefunden.'); return; }
     var pend = findPending('conn.set', 'conn:' + cid);
-    var a = OBJS[String(rv(raw, 'Start_Object_ID'))], b = OBJS[String(rv(raw, 'End_Object_ID'))];
+    var a = OBJS[g.g], b = OBJS[gOfEnd(g, raw)];
     var curName = s0(rv(raw, 'Name')), curSt = s0(rv(raw, 'Stereotype')), curDir = s0(rv(raw, 'Direction')), curNotes = decNote(rv(raw, 'Notes'));
     if (pend) {
       if (has(pend.fields, 'Name')) curName = pend.fields.Name;
@@ -366,7 +412,7 @@ var EDIT = (function () {
       if (!keys(fields)) { toast('Keine Änderung.'); modalClose(); return; }
       modalClose();
       var lbl = 'Beziehung „' + shortLabel(st || s0(rv(raw, 'Connector_Type')), 40) + '“ zwischen „' + shortLabel(a ? a.name : '?', 30) + '“ und „' + shortLabel(b ? b.name : '?', 30) + '“';
-      q({ kind: 'conn.set', key: 'conn:' + cid, id: Number(cid), fields: fields, oldStereotype: s0(rv(raw, 'Stereotype')), label: lbl, sub: subs.join('\n') });
+      q({ kind: 'conn.set', key: 'conn:' + cid, id: Number(g.l), cid: cid, srcNo: g.n, fields: fields, oldStereotype: s0(rv(raw, 'Stereotype')), label: lbl, sub: subs.join('\n') });
     };
     openModal('✏️ Beziehung bearbeiten', body, foot);
   }
@@ -377,7 +423,9 @@ var EDIT = (function () {
     oid = String(oid);
     var o = OBJS[oid];
     if (!o) return;
-    var all = rowsOf('t_objectproperties'), rows = [], i, r, p1;
+    var gT = groupOf(oid);
+    var all = rowsOf('t_objectproperties', gT.db), rows = [], i, r, p1;
+    var objectLocal = gT.l;
     var deleted = {}, sets = {};
     for (i = 0; i < changes.length; i++) {
       var c = changes[i];
@@ -386,7 +434,7 @@ var EDIT = (function () {
     }
     for (i = 0; i < all.length; i++) {
       r = all[i];
-      if (String(qcol(r, 'Object_ID')) !== oid) continue;
+      if (String(qcol(r, 'Object_ID')) !== String(objectLocal)) continue;
       p1 = String(rv(r, 'PropertyID'));
       if (deleted[p1]) continue;
       var prop = s0(rv(r, 'Property')), val = s0(rv(r, 'Value')), mark = '';
@@ -425,7 +473,7 @@ var EDIT = (function () {
     openModal('🏷️ Tags bearbeiten', h.join(''), '<button class="btn-sm" onclick="EDIT.modalClose()">Fertig</button>');
   }
   function _tagEdit(oid, pid) {
-    var raw = null, all = rowsOf('t_objectproperties'), i;
+    var raw = null, all = rowsOf('t_objectproperties', groupOf(oid).db), i;
     for (i = 0; i < all.length; i++) { if (String(rv(all[i], 'PropertyID')) === String(pid)) { raw = all[i]; break; } }
     if (!raw) { toast('Tag nicht gefunden.'); return; }
     var pend = findPending('tag.set', 'tag:' + pid);
@@ -476,7 +524,7 @@ var EDIT = (function () {
       var ty = gv('en-type'), nm = gv('en-name'), st = gv('en-st'), nt = gv('en-note');
       if (!nm) { toast('Bitte einen Namen angeben.'); return; }
       modalClose();
-      q({ kind: 'el.create', pkgId: Number(pid), objType: ty, name: nm, stereotype: st, note: nt, label: 'Neues Element „' + shortLabel(nm, 44) + '“', sub: 'Typ: ' + ty + ' · Paket: ' + shortLabel(p.name, 40) });
+      q({ kind: 'el.create', key: null, pkgId: Number(groupOf(String(pid)).l), pkgGlobal: pid, srcNo: groupOf(String(pid)).n, objType: ty, name: nm, stereotype: st, note: nt, label: 'Neues Element „' + shortLabel(nm, 44) + '“', sub: 'Typ: ' + ty + ' · Paket: ' + shortLabel(stripPrefix(p.nameBase || p.name), 40) + (MULTI_MODE ? ' · Herkunft: M' + groupOf(String(pid)).n : '') });
     };
     openModal('➕ Neues Element anlegen', body, okFooter('Element vormerken'));
   }
@@ -526,7 +574,7 @@ var EDIT = (function () {
       var ty = gv('cn-type'), nm = gv('cn-name'), st = gv('cn-st'), dir = gv('cn-dir'), nt = gv('cn-note');
       var target = OBJS[String(_connEndOid)];
       modalClose();
-      q({ kind: 'conn.create', a: Number(oid), b: Number(_connEndOid), connType: ty, name: nm, stereotype: st, direction: dir, note: nt, label: 'Neue Beziehung „' + shortLabel(nm || ty, 40) + '“', sub: shortLabel(o.name, 34) + ' → ' + shortLabel(target ? target.name : _connEndOid, 34) + ' · Typ: ' + ty });
+      q({ kind: 'conn.create', key: null, a: Number(groupOf(oid).l), b: Number(groupOf(String(_connEndOid)).l), aGlobal: oid, bGlobal: String(_connEndOid), srcNo: groupOf(oid).n, connType: ty, name: nm, stereotype: st, direction: dir, note: nt, label: 'Neue Beziehung „' + shortLabel(nm || ty, 40) + '“', sub: shortLabel(o.nameBase || o.name, 34) + ' → ' + shortLabel(target ? (target.nameBase || target.name) : _connEndOid, 34) + ' · Typ: ' + ty + (MULTI_MODE ? ' · Herkunft: M' + groupOf(oid).n : '') });
     };
     openModal('➕ Neue Beziehung anlegen', body, okFooter('Beziehung vormerken'));
   }
@@ -561,13 +609,14 @@ var EDIT = (function () {
     var attrs = 0, ar = rowsOf('t_attribute');
     for (i = 0; i < ar.length; i++) if (String(rv(ar[i], 'Object_ID')) === oid) attrs++;
     var body = '<div class="eform"><div class="danger"><b>Element „' + esc(o.name) + '“ aus der Datei entfernen?</b><br>' +
+      (MULTI_MODE ? '<span class="dim">Herkunft: M' + groupOf(oid).n + '</span><br>' : '') +
       'Beim Speichern werden mitentfernt:<br>• <b>' + conns + '</b> Beziehung(en)' + (kinds.length ? ' (u. a. ' + esc(kinds.join(', ')) + ')' : '') + '<br>' +
       '• <b>' + dgs + '</b> Sicht-Platzierung(en) (t_diagramobjects)<br>' +
       '• <b>' + tags + '</b> Tag(s)' + (attrs ? '<br>• <b>' + attrs + '</b> Attribut(e)' : '') + '<br>• zugehörige xref-/Link-Einträge.</div>' +
       '<div class="dim">Die Aktion wird erst beim Speichern in der neuen Datei wirksam — Original bleibt unverändert.</div></div>';
     formHandler = function () {
       modalClose();
-      q({ kind: 'el.del', key: 'eldel:' + oid, id: Number(oid), label: '🗑 Element „' + shortLabel(o.name, 40) + '“ löschen', sub: 'Entfernt ' + conns + ' Beziehung(en), ' + dgs + ' Sicht-Platzierung(en), ' + tags + ' Tag(s)' + (attrs ? ', ' + attrs + ' Attribut(e)' : '') + '.' });
+      q({ kind: 'el.del', key: 'eldel:' + oid, id: Number(groupOf(oid).l), oid: oid, srcNo: groupOf(oid).n, label: '🗑 Element „' + shortLabel(o.nameBase || o.name, 40) + '“ löschen', sub: 'Entfernt ' + conns + ' Beziehung(en), ' + dgs + ' Sicht-Platzierung(en), ' + tags + ' Tag(s)' + (attrs ? ', ' + attrs + ' Attribut(e)' : '') + '.' });
     };
     openModal('🗑 Element löschen', body, '<button class="btn-sm" onclick="EDIT.modalClose()">Abbrechen</button><button class="btn-sm danger" onclick="EDIT.formOk()">Löschen vormerken</button>');
   }
@@ -575,25 +624,31 @@ var EDIT = (function () {
   /* ================= Löschen: Beziehung ================= */
   function connDel(cid) {
     if (cid == null) return;
-    var raw = findRow('t_connector', 'Connector_ID', cid);
+    var g = groupOf(String(cid));
+    var raw = findRow('t_connector', 'Connector_ID', g.l, g.db);
     if (!raw) { toast('Beziehung nicht gefunden.'); return; }
-    var a = OBJS[String(rv(raw, 'Start_Object_ID'))], b = OBJS[String(rv(raw, 'End_Object_ID'))];
+    var a = OBJS[g.g], b = OBJS[gOfEnd(g, raw)];
     var body = '<div class="eform"><div class="danger"><b>Beziehung entfernen?</b><br>' +
       '„' + esc(a ? a.name : '?') + '“ → „' + esc(b ? b.name : '?') + '“ · Typ ' + esc(s0(rv(raw, 'Connector_Type'))) + (s0(rv(raw, 'Stereotype')) ? ' · «' + esc(s0(rv(raw, 'Stereotype'))) + '»' : '') +
       '<br><span class="dim">Wird beim Speichern aus t_connector, den Diagramm-Links und den Architektur-Eigenschaften entfernt.</span></div></div>';
     formHandler = function () {
       modalClose();
-      q({ kind: 'conn.del', key: 'conndel:' + cid, id: Number(cid), label: '🗑 Beziehung „' + shortLabel(s0(rv(raw, 'Stereotype')) || s0(rv(raw, 'Connector_Type')), 34) + '“ zwischen „' + shortLabel(a ? a.name : '?', 28) + '“ und „' + shortLabel(b ? b.name : '?', 28) + '“', sub: '' });
+      q({ kind: 'conn.del', key: 'conndel:' + cid, id: Number(g.l), cid: cid, srcNo: g.n, label: '🗑 Beziehung „' + shortLabel(s0(rv(raw, 'Stereotype')) || s0(rv(raw, 'Connector_Type')), 34) + '“ zwischen „' + shortLabel(a ? a.name : '?', 28) + '“ und „' + shortLabel(b ? b.name : '?', 28) + '“', sub: '' });
     };
     openModal('🗑 Beziehung löschen', body, '<button class="btn-sm" onclick="EDIT.modalClose()">Abbrechen</button><button class="btn-sm danger" onclick="EDIT.formOk()">Löschen vormerken</button>');
   }
 
   /* ================= Quelle (Original-Bytes) ================= */
-  function setSource(buffer, name) {
+  function setSource(buffer, name, n) {
     try {
       srcBytes = (buffer instanceof Uint8Array) ? new Uint8Array(buffer) : new Uint8Array(buffer);
     } catch (e) { srcBytes = null; }
     srcName = name || 'modell.qea';
+    srcN = (n == null) ? 1 : Number(n);
+    if (MODEL_DBS[srcN] == null && MODEL_DB) MODEL_DBS[srcN] = MODEL_DB;   /* Quelldatei für Rohdatenzugriffe */
+    /* Quelle auch Mehrfach verfügbar machen (Bytes als Datei 1 registrieren) */
+    while (srcArr.length < 1) srcArr.push({ bytes: null, name: '', n: 1 });
+    if (!srcArr[0].bytes) srcArr[0] = { bytes: srcBytes, name: srcName, n: 1 };
     changes = [];
     changeId = 0;
     renderDrawer();
@@ -756,6 +811,11 @@ var EDIT = (function () {
       var t1 = execRows(db, 'SELECT * FROM t_object WHERE Object_Type=? LIMIT 1', [ch.objType]);
       var tmpl = t1.length ? t1[0] : one(db, 'SELECT * FROM t_object WHERE Object_Type=? LIMIT 1', ['Class']);
       if (!tmpl) tmpl = {};
+      /* Im Mehrfach-Modus ggf. Stereotype-Vorlage aus dem Gesamtmodell nutzen (gleiche Werte) */
+      if (!t1.length && MULTI_MODE && MODEL_DB && MODEL_DB !== db) {
+        var t1b = execRows(MODEL_DB, 'SELECT * FROM t_object WHERE Object_Type=? LIMIT 1', [ch.objType]);
+        if (t1b.length) { tmpl = {}; }
+      }
       var row = {};
       for (i = 0; i < cols.length; i++) row[cols[i]] = has(tmpl, cols[i]) ? tmpl[cols[i]] : null;
       row.Object_Type = ch.objType;
@@ -857,7 +917,10 @@ var EDIT = (function () {
   }
   function reenableSave() {
     var b = el('edr-save');
-    if (b) { b.disabled = false; b.textContent = '💾 Als neue .qea speichern'; }
+    if (b) {
+      b.disabled = false;
+      b.textContent = (srcCount > 1) ? '💾 Alle Dateien als neue .qea speichern' : '💾 Als neue .qea speichern';
+    }
   }
   function failSave(msg) {
     openModal('⚠️ Speichern nicht möglich',
@@ -874,64 +937,141 @@ var EDIT = (function () {
     if (sb) { sb.disabled = true; sb.textContent = '⏳ Schreibe …'; }
     _tables = {};
     loadSQL().then(function (SQL) {
-      var db;
-      try { db = new SQL.Database(srcBytes); }
-      catch (e) { failSave('QEA-Datei konnte nicht in der SQLite-Engine geöffnet werden: ' + e.message); return; }
-      try {
-        _tables = tablesSet(db);
-        var before = snapCounts(db);
-        db.run('BEGIN');
-        for (var i = 0; i < list.length; i++) applyChange(db, list[i]);
-        var chk = db.exec('PRAGMA integrity_check');
-        var okv = (chk.length && chk[0].values.length) ? String(chk[0].values[0][0]) : '?';
-        if (okv.toLowerCase() !== 'ok') throw new Error('SQLite-Integritätsprüfung meldet: ' + okv);
-        db.run('COMMIT');
-        var after = snapCounts(db);
-        var out = db.export();
-        /* Selbsttest: mit der eingebauten Reader-Engine erneut einlesen */
-        var probe;
-        try { probe = qeaOpen(out.slice().buffer); }
-        catch (e2) { throw new Error('Selbsttest fehlgeschlagen (Ausgabedatei nicht lesbar): ' + e2.message); }
-        var cnt2 = { t_object: 0 };
-        try { cnt2.t_object = probe.rows('t_object').length; } catch (e3) { }
-        if (after.t_object >= 0 && cnt2.t_object !== after.t_object) {
-          throw new Error('Selbsttest: Elementzahl weicht ab (' + cnt2.t_object + ' vs. ' + after.t_object + ').');
-        }
-        var fname = makeFileName();
-        var dstr = deltaStr(before, after);
-        /* Ausliefern */
-        if (typeof window.__editSink === 'function') {
-          try { window.__editSink(out, fname); } catch (e4) { }
-        } else {
-          var blob = new Blob([out], { type: 'application/octet-stream' });
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement('a');
-          a.href = url; a.download = fname;
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(function () { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch (e5) { } }, 4000);
-        }
-        /* Erfolgsfenster */
-        openModal('✅ Änderungen gespeichert',
-          '<div class="eform"><p style="font-size:13px"><b>' + n + '</b> Änderungen wurden in eine <b>neue Datei</b> geschrieben:</p>' +
-          '<div class="ok"><b>' + esc(fname) + '</b><br><span class="dim">' + esc(dstr) + '</span></div>' +
-          '<p class="dim">Die Originaldatei wurde nicht verändert. Empfehlung: Die neue Datei zunächst in einer Kopie mit Sparx EA öffnen und prüfen.</p></div>',
-          '<button class="btn-sm pri" onclick="EDIT.modalClose()">OK</button>');
-        /* Ansicht auf den gespeicherten Stand aktualisieren (setzt auch die Vormerkliste zurück) */
-        setTimeout(function () {
-          try { loadQea(out.slice().buffer, fname); toast('Ansicht auf gespeicherten Stand aktualisiert.'); }
-          catch (e6) { }
-        }, 80);
-      } catch (e) {
-        try { db.run('ROLLBACK'); } catch (e7) { }
-        failSave(e.message || String(e));
-      } finally {
-        try { db.close(); } catch (e8) { }
-        reenableSave();
+      /* Änderungen nach Herkunftsdatei gruppieren (Mehrfach-Modus).
+         Jede Datei wird getrennt bearbeitet und als eigene neue Datei ausgegeben. */
+      var groups = {}, order = [], i, kk;
+      for (i = 0; i < list.length; i++) {
+        var srcNo = list[i].srcNo || 1;
+        if (!groups[srcNo]) { groups[srcNo] = { srcNo: srcNo, list: [] }; order.push(srcNo); }
+        groups[srcNo].list.push(list[i]);
       }
+      order.sort(function (a, b) { return a - b; });
+      var written = [], failed = null;
+
+      for (var g = 0; g < order.length && !failed; g++) {
+        var grp = groups[order[g]];
+        var bytes = srcNoBytes(grp.srcNo);
+        if (!bytes) { failed = 'Für Datei M' + grp.srcNo + ' liegen keine Originaldaten vor.'; break; }
+        var db;
+        try { db = new SQL.Database(bytes); }
+        catch (e) { failed = 'QEA-Datei M' + grp.srcNo + ' konnte nicht in der SQLite-Engine geöffnet werden: ' + e.message; break; }
+        try {
+          _tables = tablesSet(db);
+          var before = snapCounts(db);
+          db.run('BEGIN');
+          for (i = 0; i < grp.list.length; i++) applyChange(db, grp.list[i]);
+          var chk = db.exec('PRAGMA integrity_check');
+          var okv = (chk.length && chk[0].values.length) ? String(chk[0].values[0][0]) : '?';
+          if (okv.toLowerCase() !== 'ok') throw new Error('SQLite-Integritätsprüfung (M' + grp.srcNo + ') meldet: ' + okv);
+          db.run('COMMIT');
+          var after = snapCounts(db);
+          var out = db.export();
+          /* Selbsttest: mit der eingebauten Reader-Engine erneut einlesen */
+          var probe;
+          try { probe = qeaOpen(out.slice().buffer); }
+          catch (e2) { throw new Error('Selbsttest M' + grp.srcNo + ' fehlgeschlagen (Ausgabedatei nicht lesbar): ' + e2.message); }
+          var cnt2 = 0;
+          try { cnt2 = probe.rows('t_object').length; } catch (e3) { }
+          if (after.t_object >= 0 && cnt2 !== after.t_object) {
+            throw new Error('Selbsttest M' + grp.srcNo + ': Elementzahl weicht ab (' + cnt2 + ' vs. ' + after.t_object + ').');
+          }
+          var fname = makeFileNameFor(grp.srcNo);
+          var dstr = deltaStr(before, after);
+          deliver(out, fname);
+          written.push({ fname: fname, dstr: dstr, count: grp.list.length, srcNo: grp.srcNo, out: out });
+        } catch (e) {
+          try { db.run('ROLLBACK'); } catch (e7) { }
+          failed = (e.message || String(e));
+        } finally {
+          try { db.close(); } catch (e8) { }
+        }
+      }
+
+      reenableSave();
+
+      if (failed) {
+        openModal('⚠️ Speichern abgebrochen',
+          '<div class="eform"><div class="danger"><b>Es wurde nichts geschrieben.</b><br>' + esc(failed) + '</div>' +
+          (written.length ? '<div class="dim">Bereits vorbereitete Dateien wurden verworfen — es wurde keine Datei ausgegeben.</div>' : '') +
+          '<div class="dim">Die Originaldateien und Ihre Vormerkliste bleiben unverändert.</div></div>',
+          '<button class="btn-sm" onclick="EDIT.modalClose()">OK</button>');
+        return;
+      }
+
+      /* Erfolgsfenster */
+      var h = ['<div class="eform"><p style="font-size:13px"><b>' + n + '</b> Änderungen wurden in <b>' + written.length + '</b> neue Datei(en) geschrieben:</p>'];
+      for (i = 0; i < written.length; i++) {
+        h.push('<div class="ok"><b>' + esc(written[i].fname) + '</b><br><span class="dim">' +
+          (written.length > 1 ? 'M' + written[i].srcNo + ' · ' : '') + written[i].count + ' Änderung(en) · ' + esc(written[i].dstr) + '</span></div>');
+      }
+      h.push('<p class="dim">Die Originaldatei' + (written.length > 1 ? 'en wurden' : ' wurde') + ' nicht verändert. Empfehlung: Die neue(n) Datei(en) zunächst in einer Kopie mit Sparx EA öffnen und prüfen.</p></div>');
+      openModal('✅ Änderungen gespeichert', h.join(''), '<button class="btn-sm pri" onclick="EDIT.modalClose()">OK</button>');
+
+      /* Ansicht aktualisieren (setzt auch die Vormerkliste zurück) */
+      setTimeout(function () {
+        try {
+          if (written.length === 1 && srcCount <= 1) {
+            loadQea(written[0].out.slice().buffer, written[0].fname);
+            toast('Ansicht auf gespeicherten Stand aktualisiert.');
+          } else {
+            toast('Dateien gespeichert. Zum Prüfen die neue(n) Datei(en) erneut laden.');
+          }
+        } catch (e6) { }
+      }, 80);
     }, function (e) {
       failSave('SQLite-Engine konnte nicht geladen werden: ' + (e && e.message ? e.message : e));
     });
+  }
+
+  /* Ausgabedatei benennen (Mehrfach-Modus: je Quell-Datei eigener Name) */
+  function makeFileNameFor(srcNo) {
+    var base;
+    if (srcCount > 1) {
+      base = String((MODEL_FILES[srcNo - 1] && MODEL_FILES[srcNo - 1].name) || srcName || 'Modell');
+      base = base.replace(/\.(qea|qeax|eapx|sqlite)$/i, '');
+    } else {
+      base = srcName.replace(/\.(qea|qeax|eapx|sqlite)$/i, '');
+    }
+    if (!base) base = 'Modell';
+    return base + '_bearbeitet_' + fileStamp() + '.qea';
+  }
+  /* Original-Bytes einer Datei (Einzelmodell: die geladene Datei) */
+  function srcNoBytes(srcNo) {
+    if (srcCount <= 1) return srcBytes;
+    var s = srcArr[srcNo - 1];
+    if (s && s.bytes) return s.bytes;
+    if (srcNo === 1 && srcBytes) return srcBytes;   /* Einzelmodell wurde als M1 übernommen */
+    var f = MODEL_FILES[srcNo - 1];
+    return (f && f.bytes) ? f.bytes : null;
+  }
+  /* Ausgabe (Download bzw. Test-Senke) */
+  function deliver(out, fname) {
+    if (typeof window.__editSink === 'function') {
+      try { window.__editSink(out, fname); } catch (e) { }
+      return;
+    }
+    var blob = new Blob([out], { type: 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { try { document.body.removeChild(a); URL.revokeObjectURL(url); } catch (e) { } }, 4000);
+  }
+  /* Durchgereichte Quellwechsel (Mehrfach-Modus) */
+  function setSourceCount(c) { srcCount = Number(c) || 1; reenableSave(); }
+  /* Eine weitere Datei als Quelle registrieren (Mehrfach-Modus) */
+  function addSource(buffer, name, n) {
+    var bytes = null;
+    try { bytes = (buffer instanceof Uint8Array) ? new Uint8Array(buffer) : new Uint8Array(buffer); } catch (e) { bytes = null; }
+    var idx = Math.max(0, (Number(n) || 1) - 1);
+    while (srcArr.length <= idx) srcArr.push({ bytes: null, name: '', n: srcArr.length + 1 });
+    srcArr[idx] = { bytes: bytes, name: name || ('Modell ' + (idx + 1)), n: idx + 1 };
+    var f = MODEL_FILES[idx];
+    if (f) f.bytes = bytes;
+    if (idx === 0) { srcBytes = bytes; srcName = name || srcBytes; }
+    srcCount = Math.max(srcCount, srcArr.length);
+    reenableSave();
   }
 
   /* ================= CSV-Protokoll ================= */
@@ -957,6 +1097,9 @@ var EDIT = (function () {
   return {
     version: 'v5.0',
     setSource: setSource,
+    addSource: addSource,
+    setSourceCount: setSourceCount,
+    normalizeToLocal: normalizeToLocal,
     q: q,
     save: save,
     removeChange: removeChange,
@@ -967,6 +1110,7 @@ var EDIT = (function () {
     closePanel: closePanel,
     togglEdit: function () { },
     modalClose: modalClose,
+    openModal: openModal,
     formOk: formOk,
     exportCSV: exportCSV,
     elEdit: elEdit,

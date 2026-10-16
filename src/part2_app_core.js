@@ -11,6 +11,18 @@ var VPMODE = 'list';
 var SEARCH_SCOPE = 'all', GLOBHITS = [];
 var DIAG_FILTER = { q: '', pkg: '', layer: 'all' };
 var EXPCTX = null, PRINTCTX = '';
+/* Mehrfach-Modell-Modus (v6): mehrere QEA-Dateien zu einer Landkarte verschmelzen */
+var SINGLE = true;                /* true = Einzelmodell (Rückwärtskompatibilität, z. B. Test-Harness) */
+var MULTI_MODE = false;           /* true, wenn der Nutzer den Mehrfach-Modus aktiviert hat */
+var MODEL_N = 0;                  /* Zähler geladener Dateien */
+var MODEL_FILES = [];             /* je Datei: {n, name, pkg, diag, obj, con} */
+var MODEL_KEYMAP = {};            /* Fusion: "name\u0001stereo" -> globale Element-Kennung */
+var MODEL_LOCAL2G = {};           /* Fusion: lokale ID -> {g, l} (Umleitung auf vorhandenes Element) */
+var MULTI_SRC = {};               /* Fusion: lokale ID -> globale Kennung des Zielelements */
+var MODEL_DBS = {};               /* je Datei: {n: DB-Objekt} */
+var MODEL_DB = null, MODEL_OBJS = {}, MODEL_PKG = {}, MODEL_DIAGS = [], MODEL_TAGS = {};
+var CONNMAP = {};                 /* Nachschlagetabelle: Beziehungs-Kennung -> Beziehung (alle Modelle) */
+var PKG_CANDS = [];               /* Kandidaten-IDs der Pakete eines Aufbaus (Umrechnung) */
 var G = {
   vp: null, built: false, baseNodes: [], baseLinks: [], viewNodes: [], viewLinks: [],
   nbr: {}, pos: {}, focus: null, fset: null, vb: null, simTimer: null,
@@ -643,56 +655,366 @@ function updatePrintMeta() {
 /* ================================================================
    MODELL LADEN & PAKET-/SICHTEN-STRUKTUR AUFBAUEN
    ================================================================ */
+/* ================================================================
+   MEHRFACH-MODELL-MODUS (ab v6)
+   Mehrere .qea-Dateien gleichzeitig laden; alle werden zu EINER Landkarte
+   verschmolzen. Elemente/Beziehungen erhalten ein Quell-Präfix (<<M2>>),
+   gleichnamige Elemente desselben Typs werden über Dateigrenzen hinweg
+   zusammengeführt — nur so werden Beziehungen zwischen Architekturen sichtbar.
+   ================================================================ */
+
+function stripPrefix(s) {
+  return String(s == null ? '' : s).replace(/^\s*<<[^>]{1,40}>>\s*/, '');
+}
+function mergeKey(name, st) {
+  return norm(name).toLowerCase() + '\u0001' + String(st == null ? '' : st).trim().toLowerCase();
+}
+
+/* ================================================================
+   Mehrfach-Modus: Kennungsschema und Fusion
+   Modell 1 behält seine Original-Kennungen (abwärtskompatibel, auch im
+   Einzelmodus). Ab Modell 2 erhält jedes Objekt eine eigene Kennung:
+   m2_o101 (Element), m2_p7 (Paket), m2_d5 (Sicht), m2_c33 (Beziehung).
+   Elemente werden über Name + Stereotype über Dateigrenzen hinweg zu
+   einem gemeinsamen Knoten fusioniert — nur so werden Beziehungen
+   zwischen Architekturen sichtbar.
+   ================================================================ */
+function keyFor(kind, raw, n) {
+  if (raw == null) return raw;
+  if (!MULTI_MODE || !n || Number(n) <= 1) return String(raw);
+  return 'm' + Number(n) + '_' + kind + String(raw);
+}
+function pkgKey(raw) { return keyFor('p', raw, MODEL_N); }
+function objKey(raw) { return keyFor('o', raw, MODEL_N); }
+function diagKey(raw) { return keyFor('d', raw, MODEL_N); }
+function connKey(raw) { return keyFor('c', raw, MODEL_N); }
+
+/* Dieses Modell in die verschmolzene Landkarte einarbeiten (nach dem Aufbau) */
+function finalizeMerge(n) {
+  var k, o, i;
+  if (!MULTI_MODE) return;
+  if (n <= 1) {
+    /* Modell 1: Schlüsselregister für die Fusion aufbauen */
+    for (k in OBJS) {
+      if (!OBJS.hasOwnProperty(k)) continue;
+      o = OBJS[k];
+      o.m = 1;
+      o.models = [1];
+      if (o.name && o.type !== 'Package') MODEL_KEYMAP[mergeKey(o.name, o.st)] = k;
+    }
+    if (MODEL_FILES[0]) MODEL_FILES[0].obj = Object.keys(OBJS).length;
+    return;
+  }
+  /* Modell 2+: dieses Modell in die Landkarte einarbeiten */
+  var oMap = {}, gO = {}, cntTotal = 0, cntMerged = 0, cntFresh = 0;
+  for (k in OBJS) {
+    if (!OBJS.hasOwnProperty(k)) continue;
+    o = OBJS[k];
+    if (Number(o.m) !== Number(n)) { gO[k] = o; continue; }
+    cntTotal++;
+    var mk = (o.name && o.type !== 'Package') ? mergeKey(o.name, o.st) : null;
+    var ex = mk ? MODEL_KEYMAP[mk] : null;
+    if (ex != null && gO[ex]) {
+      /* Fusion: identisches Element (Name + Stereotype) teilt sich den Knoten */
+      oMap[k] = ex;
+      MULTI_SRC[k] = ex;
+      cntMerged++;
+      var host = gO[ex];
+      host.models = host.models || [1];
+      if (host.models.indexOf(n) < 0) host.models.push(n);
+      if (TAGS[k]) { TAGS[ex] = (TAGS[ex] || []).concat(TAGS[k]); delete TAGS[k]; }
+    } else {
+      oMap[k] = k;
+      if (mk) MODEL_KEYMAP[mk] = k;
+      o.models = [n];
+      cntFresh++;
+      gO[k] = o;
+    }
+  }
+  OBJS = gO;
+  /* Beziehungen, Sicht-Platzierungen und Sicht-Zuordnungen nachziehen */
+  for (i = 0; i < CONS.length; i++) {
+    if (oMap[CONS[i].a] != null) CONS[i].a = oMap[CONS[i].a];
+    if (oMap[CONS[i].b] != null) CONS[i].b = oMap[CONS[i].b];
+  }
+  for (k in DIAGOBJ) {
+    if (!DIAGOBJ.hasOwnProperty(k)) continue;
+    for (i = 0; i < DIAGOBJ[k].length; i++) {
+      if (oMap[DIAGOBJ[k][i].oid] != null) DIAGOBJ[k][i].oid = oMap[DIAGOBJ[k][i].oid];
+    }
+  }
+  for (k in OBJ_DIAGS) {
+    if (!OBJ_DIAGS.hasOwnProperty(k)) continue;
+    if (oMap[k] != null) {
+      OBJ_DIAGS[oMap[k]] = (OBJ_DIAGS[oMap[k]] || []).concat(OBJ_DIAGS[k]);
+      delete OBJ_DIAGS[k];
+    }
+  }
+  /* Paket-Listen dieses Modells bereinigen (fusionierte Elemente auf den Zielknoten umbiegen) */
+  for (k in PKG) {
+    if (!PKG.hasOwnProperty(k) || Number(PKG[k].m) !== Number(n)) continue;
+    var lst = PKG[k].objs, nw = [], seen = {};
+    for (i = 0; i < lst.length; i++) {
+      var oid2 = String(lst[i].id);
+      if (oMap[oid2] != null) oid2 = oMap[oid2];
+      if (seen[oid2]) continue;
+      seen[oid2] = 1;
+      nw.push(OBJS[oid2] || lst[i]);
+    }
+    PKG[k].objs = nw;
+  }
+  /* Zählwerte für den Fusionsbericht festhalten */
+  if (MODEL_FILES[n - 1]) { MODEL_FILES[n - 1].obj = cntTotal; MODEL_FILES[n - 1].merged = cntMerged; MODEL_FILES[n - 1].fresh = cntFresh; }
+}
+
 function loadQea(buffer, name) {
-  try {
-    DB = qeaOpen(buffer);
-  } catch (e) {
-    alert('Datei konnte nicht gelesen werden:\n\n' + e.message + '\n\nUnterstützt werden QEA-/EAPX-Dateien im SQLite-Format (Sparx Enterprise Architect).');
+  if (SINGLE && !MULTI_MODE) {
+    try { DB = qeaOpen(buffer); }
+    catch (e) { alert('Datei konnte nicht gelesen werden:\n\n' + e.message + '\n\nUnterstützt werden QEA-/EAPX-Dateien im SQLite-Format (Sparx Enterprise Architect).'); return; }
+    MODELLNAME = name;
+    G.built = false;
+    resetModelData();
+    MODEL_DBS = {}; MODEL_DBS[1] = DB;
+    buildModel();
+    if (!Object.keys(OBJS).length && !DIAGS.length && !Object.keys(PKG).length) {
+      alert('In der Datei wurde keine Sparx-EA-Struktur gefunden (Kern-Tabelle t_object fehlt oder ist leer).');
+      return;
+    }
+    if (typeof EDIT !== 'undefined' && EDIT.setSource) { EDIT.setSource(buffer, name, 1); if (EDIT.setSourceCount) EDIT.setSourceCount(1); }
+    var nObj = Object.keys(OBJS).length, nDiag = DIAGS.length, nPkg = Object.keys(PKG).length, nCon = CONS.length;
+    el('upload').style.display = 'none';
+    el('workspace').style.display = 'block';
+    el('modellname').textContent = name;
+    renderModelStats(nPkg, nDiag, nObj, nCon);
+    renderWarnbar();
+    computeStats();
+    renderQuickBar();
+    renderGrid();
+    renderDiagsCatalog();
+    if (el('cnt-path')) el('cnt-path').textContent = fmt(nCon);
+    PATH = { start: null, end: null, directed: false, maxHops: 5, mode: 'shortest', last: null, selPath: 0, ctx: false };
+    PATH_ADJ = null; PATH_COMP = null;
+    pathRenderTab();
+    var startPkg = PKG_ROOTS.length ? PKG_ROOTS[0].id : null;
+    if (startPkg != null) {
+      PKG_OPEN[startPkg] = true;
+      for (var j = 0; j < PKG_ROOTS[0].children.length; j++) PKG_OPEN[PKG_ROOTS[0].children[j].id] = true;
+    }
+    renderPkgTree();
+    showView('explorer');
+    if (startPkg != null) openPackage(startPkg, true);
+  } else {
+    addModelToMerge(buffer, name);
+  }
+}
+
+function renderModelStats(nPkg, nDiag, nObj, nCon) {
+  var s = el('stats');
+  if (!s) return;
+  s.innerHTML =
+    '<b>' + fmt(nPkg) + '</b> Pakete &nbsp;·&nbsp; ' +
+    '<b>' + fmt(nDiag) + '</b> Sichten (Diagramme) &nbsp;·&nbsp; ' +
+    '<b>' + fmt(nObj) + '</b> Elemente &nbsp;·&nbsp; ' +
+    '<b>' + fmt(nCon) + '</b> Beziehungen';
+  if (el('cnt-pkg')) el('cnt-pkg').textContent = fmt(nPkg);
+  if (el('cnt-diag')) el('cnt-diag').textContent = fmt(nDiag);
+  if (el('cnt-path')) el('cnt-path').textContent = fmt(nCon);
+}
+
+function shortFileName(nm) {
+  var s = String(nm || '').replace(/\.(qea|qeax|eapx|sqlite)$/i, '');
+  return s.length > 34 ? s.substring(0, 32) + '…' : s;
+}
+
+/* Datenstrukturen leeren (Einzelmodus: frischer Aufbau; vor dem Verschmelzen
+   wird NICHT geleert, weil die Landkarte wachsen soll) */
+function resetModelData() {
+  OBJS = {}; CONS = []; PKG = {}; PKG_ROOTS = []; PKG_OPEN = {};
+  DIAGS = []; DIAGMAP = {}; DIAGOBJ = {}; DIAGLINK = {}; OBJ_DIAGS = {}; TAGS = {};
+  MULTI_SRC = {};
+  MODEL_N = 0; MODEL_FILES = []; MODEL_KEYMAP = {}; CONNMAP = {};
+  MODEL_DBS = {}; MODEL_DB = null; MODEL_OBJS = {}; MODEL_PKG = {}; MODEL_DIAGS = []; MODEL_TAGS = {};
+}
+
+/* Ein Modell in die verschmolzene Landkarte einarbeiten */
+function addModelToMerge(buffer, name) {
+  var myDb;
+  try { myDb = qeaOpen(buffer); }
+  catch (e) { alert('Datei „' + name + '“ konnte nicht gelesen werden:\n\n' + e.message); return; }
+
+  /* Prüfen, ob überhaupt eine Sparx-EA-Struktur enthalten ist (vor dem Einarbeiten) */
+  var probe = null;
+  try { probe = myDb.rows('t_object'); } catch (e2) { probe = null; }
+  if (!probe || !probe.length) {
+    alert('In der Datei „' + name + '“ wurde keine Sparx-EA-Struktur gefunden (Kern-Tabelle t_object fehlt oder ist leer).');
     return;
   }
-  MODELLNAME = name;
-  G.built = false;
+
+  MODEL_N++;
+  var n = MODEL_N;
+  MODEL_FILES.push({ n: n, name: name, pkg: 0, diag: 0, obj: 0, con: 0 });
+  var mi = MODEL_FILES[MODEL_FILES.length - 1];
+
+  /* Dieses Modell regulär aufbauen; die Fusion erledigt finalizeMerge (in buildModel) */
+  DB = myDb; MODELLNAME = name; G.built = false;
+  MODEL_DBS[n] = myDb;
+  var prePkg = Object.keys(PKG).length, preObj = Object.keys(OBJS).length,
+      preDiag = DIAGS.length, preCon = CONS.length;
   buildModel();
-  if (!Object.keys(OBJS).length && !DIAGS.length && !Object.keys(PKG).length) {
-    alert('In der Datei wurde keine Sparx-EA-Struktur gefunden (Kern-Tabelle t_object fehlt oder ist leer).');
-    return;
+  mi.pkg = Object.keys(PKG).length - prePkg;
+  mi.diag = DIAGS.length - preDiag;
+  mi.con = CONS.length - preCon;
+  if (mi.obj == null) mi.obj = Object.keys(OBJS).length - preObj;
+
+  var i;
+  /* Paket-Sichtbarkeit über den Explorer (neue Wurzelpakete einklappen) */
+  for (i = 0; i < PKG_ROOTS.length; i++) {
+    if (Number(PKG_ROOTS[i].m) === Number(n)) PKG_OPEN[PKG_ROOTS[i].id] = false;
   }
-  if (typeof EDIT !== 'undefined' && EDIT.setSource) EDIT.setSource(buffer, name);
-  var nPkg = Object.keys(PKG).length;
+
+  /* Globale Referenzen für Fallbacks (Edit-Modul, Graph) aktualisieren */
+  MODEL_DB = DB; MODEL_OBJS = OBJS; MODEL_PKG = PKG; MODEL_DIAGS = DIAGS; MODEL_TAGS = TAGS;
+
+  /* Quellwechsel im Edit-Modus (Mehrfach-Modus: je Datei eigener Satz Originaldaten) */
+  if (typeof EDIT !== 'undefined') {
+    if (EDIT.addSource) EDIT.addSource(buffer, name, n);
+    if (EDIT.setSourceCount) EDIT.setSourceCount(MODEL_FILES.length);
+  }
+
+  /* Ansicht aktualisieren */
+  var totPkg = Object.keys(PKG).length, totObj = Object.keys(OBJS).length, totDiag = DIAGS.length, totCon = CONS.length;
   el('upload').style.display = 'none';
   el('workspace').style.display = 'block';
-  el('modellname').textContent = name;
-  el('stats').innerHTML =
-    '<b>' + fmt(nPkg) + '</b> Pakete &nbsp;·&nbsp; ' +
-    '<b>' + fmt(DIAGS.length) + '</b> Sichten (Diagramme) &nbsp;·&nbsp; ' +
-    '<b>' + fmt(Object.keys(OBJS).length) + '</b> Elemente &nbsp;·&nbsp; ' +
-    '<b>' + fmt(CONS.length) + '</b> Beziehungen';
-  if (el('cnt-pkg')) el('cnt-pkg').textContent = fmt(nPkg);
-  if (el('cnt-diag')) el('cnt-diag').textContent = fmt(DIAGS.length);
+  var mm = '';
+  for (i = 0; i < MODEL_FILES.length; i++) {
+    mm += (i ? ' &nbsp;+&nbsp; ' : '') + '<b>M' + MODEL_FILES[i].n + '</b> ' + esc(shortFileName(MODEL_FILES[i].name));
+  }
+  el('modellname').innerHTML = mm;
+  renderModelStats(totPkg, totDiag, totObj, totCon);
+  MODELLNAME = MODEL_FILES.length + ' Modelle: ' + MODEL_FILES.map(function (f) { return f.name; }).join(' + ');
 
   renderWarnbar();
   computeStats();
   renderQuickBar();
   renderGrid();
   renderDiagsCatalog();
-
-  /* Verbindungs-/Pfadanalyse (v4.0): Zustand zurücksetzen und Reiter aufbauen */
-  if (el('cnt-path')) el('cnt-path').textContent = fmt(CONS.length);
   PATH = { start: null, end: null, directed: false, maxHops: 5, mode: 'shortest', last: null, selPath: 0, ctx: false };
   PATH_ADJ = null; PATH_COMP = null;
   pathRenderTab();
+  renderMergeBar();
 
-  /* Standardmäßig Wurzelpaket im Explorer öffnen! */
-  var startPkg = PKG_ROOTS.length ? PKG_ROOTS[0].id : null;
-  if (startPkg != null) {
-    PKG_OPEN[startPkg] = true;
-    for (var i = 0; i < PKG_ROOTS[0].children.length; i++) {
-      PKG_OPEN[PKG_ROOTS[0].children[i].id] = true;
-    }
+  /* Erstes Modell: Explorer öffnen wie bisher; weitere: Übersicht der Sichten */
+  if (MODEL_FILES.length === 1) {
+    var startPkg = PKG_ROOTS.length ? PKG_ROOTS[0].id : null;
+    if (startPkg != null) { PKG_OPEN[startPkg] = true; for (var j2 = 0; j2 < PKG_ROOTS[0].children.length; j2++) PKG_OPEN[PKG_ROOTS[0].children[j2].id] = true; }
+    renderPkgTree();
+    showView('explorer');
+    if (startPkg != null) openPackage(startPkg, true);
+  } else {
+    renderPkgTree();
+    showView('diags');
+    toast('Modell ' + n + ' verschmolzen: ' + esc(shortFileName(name)) + ' · ' + MODEL_FILES.length + ' Modelle geladen');
   }
-  renderPkgTree();
-  showView('explorer');
-  if (startPkg != null) openPackage(startPkg, true);
+}
+
+/* Kleine Rückmeldung (eigener Toast, unabhängig vom Edit-Modus) */
+function toast(msg) {
+  var t = el('mttoast');
+  if (!t) { return; }
+  t.innerHTML = msg;
+  t.removeAttribute('hidden');
+  if (toast._tm) clearTimeout(toast._tm);
+  toast._tm = setTimeout(function () { t.setAttribute('hidden', ''); }, 4200);
+}
+
+/* Analyse-Dialoge nutzen das Edit-Modal; fehlt der Edit-Modus, greift ein Minimalfenster. */
+function modalClose() {
+  if (typeof EDIT !== 'undefined' && EDIT.modalClose) { EDIT.modalClose(); return; }
+  var m = el('editmodal');
+  if (m) { m.setAttribute('hidden', ''); m.innerHTML = ''; }
+}
+function openModal(title, bodyHtml, footHtml) {
+  if (typeof EDIT !== 'undefined' && EDIT.openModal) { EDIT.openModal(title, bodyHtml, footHtml); return; }
+  var m = el('editmodal');
+  if (!m) { toast('<b>' + title + '</b>'); return; }
+  m.innerHTML = '<div class="em-back" onclick="modalClose()"></div><div class="em-box">' +
+    '<div class="em-head"><b>' + title + '</b><button onclick="modalClose()" title="Schließen">✕</button></div>' +
+    '<div class="em-body">' + bodyHtml + '</div>' +
+    '<div class="em-foot">' + (footHtml || '<button class="btn-sm" onclick="modalClose()">Schließen</button>') + '</div>' +
+    '</div>';
+  m.removeAttribute('hidden');
+}
+
+/* Steuerleiste für den Mehrfach-Modus */
+function renderMergeBar() {
+  var bar = el('mergebar');
+  if (!bar) return;
+  if (!MULTI_MODE) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  var h = ['<div class="mg-inner"><span class="mg-lead">🗂️ <b>' + MODEL_FILES.length + ' Architektur(en)</b> zu einer Landkarte verschmolzen</span><span class="mg-files">'];
+  for (var i = 0; i < MODEL_FILES.length; i++) {
+    var f = MODEL_FILES[i];
+    h.push('<span class="mg-file" title="' + esc(f.name) + '"><b>M' + f.n + '</b> ' + esc(shortFileName(f.name)) +
+      '<em>' + f.pkg + ' Pakete · ' + f.diag + ' Sichten · ' + f.obj + ' Elemente · ' + f.con + ' Beziehungen</em></span>');
+  }
+  h.push('</span>');
+  h.push('<span class="mg-act">');
+  h.push('<button class="btn-sm" onclick="el(\'file\').click()">＋ Weitere Datei laden</button>');
+  h.push('<button class="btn-sm" onclick="openMergeReport()" title="Was wurde zusammengeführt?">🔍 Fusionsbericht</button>');
+  h.push('<button class="btn-sm amber" onclick="exitMultiMode()" title="Verschmelzung auflösen, nur das erste Modell behalten">✕ Verschmelzung auflösen</button>');
+  h.push('</span></div>');
+  bar.innerHTML = h.join('');
+  bar.style.display = 'block';
+}
+
+function openMergeReport() {
+  if (!MULTI_MODE) { toast('Es ist nur ein Modell geladen.'); return; }
+  var h = ['<div style="font-size:12.5px">'];
+  h.push('<p style="margin:0 0 8px 0">In einer <b>verschmolzenen Landkarte</b> stehen alle Elemente, Pakete und Sichten aller geladenen Dateien gemeinsam zur Verfügung. '
+    + 'Elemente werden über <b>Name + Stereotype</b> zusammengeführt — nur so werden Beziehungen zwischen zwei Architekturen sichtbar. '
+    + 'Das Kürzel <code>&lt;&lt;M2&gt;&gt;</code> im Namen kennzeichnet die Herkunft, wenn Namen doppelt vorkommen.</p>');
+  h.push('<table class="data"><thead><tr><th>Kürzel</th><th>Datei</th><th>Pakete</th><th>Sichten</th><th>Elemente</th><th>Beziehungen</th></tr></thead><tbody>');
+  for (var i = 0; i < MODEL_FILES.length; i++) {
+    var f = MODEL_FILES[i];
+    h.push('<tr><td><b>M' + f.n + '</b></td><td>' + esc(f.name) + '</td><td>' + f.pkg + '</td><td>' + f.diag + '</td><td>' + f.obj + '</td><td>' + f.con + '</td></tr>');
+  }
+  h.push('<tr style="background:#F1F5F9"><td colspan="2"><b>Summe geladen</b></td><td>' + Object.keys(PKG).length + '</td><td>' + DIAGS.length + '</td><td>' + Object.keys(OBJS).length + '</td><td>' + CONS.length + '</td></tr>');
+  h.push('</tbody></table>');
+  var merged = 0, k;
+  for (k in MULTI_SRC) if (MULTI_SRC.hasOwnProperty(k)) merged++;
+  h.push('<p style="margin:10px 0 4px 0"><b>' + fmt(merged) + '</b> Element(e) wurden über Dateigrenzen hinweg zusammengeführt (gleicher Name + Stereotype).</p>');
+  h.push('<p class="dim" style="margin:0">Hinweis: Sicht-Diagramme bleiben je Datei getrennt. Beim Bearbeiten und Speichern gilt: es wird immer in die Datei der jeweiligen Herkunft geschrieben.</p>');
+  h.push('</div>');
+  openModal('🗂️ Fusionsbericht', h.join(''), '<button class="btn-sm" onclick="modalClose()">Schließen</button>');
+}
+
+function exitMultiMode() {
+  if (!MULTI_MODE) { toast('Es ist nur ein Modell geladen.'); return; }
+  var first = MODEL_FILES.length ? MODEL_FILES[0].name : MODELLNAME;
+  alert('Um nur das erste Modell (' + shortFileName(first) + ') zu behalten:\n\nBitte die Seite neu laden und die gewünschte Datei einzeln öffnen.');
+}
+
+/* Umschalter Einzel-/Mehrfach-Modus */
+function toggleMultiMode(on) {
+  MULTI_MODE = !!on;
+  var lab = el('multilabel');
+  if (lab) lab.className = MULTI_MODE ? 'mmode on' : 'mmode';
+  var chk = el('multichk');
+  if (chk) chk.checked = MULTI_MODE;
+  /* Wurde zuvor ein Einzelmodell geladen, wird es Modell 1 der Landkarte */
+  if (MULTI_MODE && DB && MODEL_N === 0) {
+    MODEL_N = 1;
+    MODEL_DBS[1] = DB;
+    MODEL_FILES.push({ n: 1, name: (MODELLNAME || 'Modell 1'), pkg: Object.keys(PKG).length, diag: DIAGS.length, obj: Object.keys(OBJS).length, con: CONS.length });
+    finalizeMerge(1);
+    toast('Mehrfach-Modus aktiv: Das geladene Modell ist jetzt <b>M1</b>. Weitere Dateien werden zu einer gemeinsamen Landkarte verschmolzen.');
+    renderMergeBar();
+    return;
+  }
+  renderMergeBar();
+  if (!DB) return;
+  toast(MULTI_MODE
+    ? 'Mehrfach-Modus aktiv: weitere .qea-Dateien werden zu einer gemeinsamen Landkarte verschmolzen. Gleichnamige Elemente werden zusammengeführt.'
+    : 'Mehrfach-Modus aus: Es wird wieder nur eine Datei geladen.');
 }
 
 function renderWarnbar() {
@@ -700,12 +1022,16 @@ function renderWarnbar() {
   if (!wb) return;
   var need = ['t_object', 't_connector', 't_package', 't_diagram', 't_diagramobjects', 't_diagramlinks'];
   var labels = { t_object: 'Elemente (t_object)', t_connector: 'Beziehungen (t_connector)', t_package: 'Pakete (t_package)', t_diagram: 'Diagramme (t_diagram)', t_diagramobjects: 'Diagramm-Inhalte (t_diagramobjects)', t_diagramlinks: 'Diagramm-Links (t_diagramlinks)' };
-  var missing = [], i;
-  for (i = 0; i < need.length; i++) {
-    if (!DB.hasTable(need[i])) missing.push(labels[need[i]]);
+  var missing = [], i, j;
+  for (i = 0; i < MODEL_FILES.length; i++) {
+    var db = MODEL_DBS[MODEL_FILES[i].n];
+    if (!db) continue;
+    for (j = 0; j < need.length; j++) {
+      if (!db.hasTable(need[j])) { var s = labels[need[j]] + ' [M' + MODEL_FILES[i].n + ']'; if (missing.indexOf(s) < 0) missing.push(s); }
+    }
   }
   if (!missing.length) { wb.style.display = 'none'; wb.innerHTML = ''; return; }
-  wb.innerHTML = '⚠ Hinweis: Diese Datei enthält nicht alle EA-Kerntabellen — fehlend: ' + esc(missing.join(', ')) + '. Die Auswertung läuft; einzelne Bereiche können eingeschränkt sein.';
+  wb.innerHTML = '⚠ Hinweis: In mindestens einer Datei fehlen EA-Kerntabellen — fehlend: ' + esc(missing.join(', ')) + '. Die Auswertung läuft; einzelne Bereiche können eingeschränkt sein.';
   wb.style.display = 'block';
 }
 
@@ -723,19 +1049,24 @@ function detectViewpointPrefix(nm) {
 }
 
 function buildModel() {
-  OBJS = {}; CONS = []; PKG = {}; PKG_ROOTS = []; PKG_OPEN = {};
-  DIAGS = []; DIAGMAP = {}; DIAGOBJ = {}; DIAGLINK = {}; OBJ_DIAGS = {}; TAGS = {};
+  /* Pakete werden vom Aufrufer geleert (Einzelmodus: resetModelData();
+     Mehrfach-Modus: die Landkarte der bereits geladenen Dateien bleibt bestehen). */
 
   var rows = DB.rows('t_package');
   var i, r;
   for (i = 0; i < rows.length; i++) {
     r = rows[i];
-    var pid = qcol(r, 'Package_ID');
-    if (pid == null) continue;
+    var pidRaw = qcol(r, 'Package_ID');
+    if (pidRaw == null) continue;
+    var pid = pkgKey(pidRaw);
+    var pnm = norm(qcol(r, 'Name')) || ('Paket ' + pidRaw);
     PKG[pid] = {
       id: pid,
-      name: norm(qcol(r, 'Name')) || ('Paket ' + pid),
-      parent: qcol(r, 'Parent_ID') || 0,
+      localId: pidRaw,
+      m: MODEL_N,
+      nameBase: pnm,
+      name: (MULTI_MODE && MODEL_N > 1 ? '<<M' + MODEL_N + '>> ' + pnm : pnm),
+      parent: (qcol(r, 'Parent_ID') || 0) ? pkgKey(qcol(r, 'Parent_ID')) : 0,
       tpos: parseInt(qcol(r, 'TPos'), 10) || 0,
       notes: cleanNote(qcol(r, 'Notes')),
       children: [],
@@ -768,7 +1099,7 @@ function buildModel() {
   sortPkgs(PKG_ROOTS);
 
   function buildPkgPaths(node, ancestryNames, ancestryIds) {
-    var names = ancestryNames.concat([node.name]);
+    var names = ancestryNames.concat([node.nameBase || node.name]);
     var ids = ancestryIds.concat([node.id]);
     node.path = names.join(' / ');
     node.shortPath = names.slice(-3).join(' / ');
@@ -779,15 +1110,18 @@ function buildModel() {
   }
   for (i = 0; i < PKG_ROOTS.length; i++) buildPkgPaths(PKG_ROOTS[i], [], []);
 
+  /* Elemente aufbauen (Kennungen ab Modell 2 eindeutig, siehe keyFor) */
   rows = DB.rows('t_object');
   for (i = 0; i < rows.length; i++) {
     r = rows[i];
-    var oidV = qcol(r, 'Object_ID');
-    if (oidV == null) continue;
-    var opkg = qcol(r, 'Package_ID');
+    var oidRaw = qcol(r, 'Object_ID');
+    if (oidRaw == null) continue;
+    var oidV = objKey(oidRaw);
+    var opkg = pkgKey(qcol(r, 'Package_ID'));
     var pObj = PKG[opkg];
     var oItem = {
       id: oidV,
+      localId: oidRaw,
       name: norm(qcol(r, 'Name')),
       st: norm(qcol(r, 'Stereotype')),
       alias: norm(qcol(r, 'Alias')),
@@ -795,7 +1129,8 @@ function buildModel() {
       pkgId: opkg,
       pkg: pObj ? (pObj.shortPath || pObj.path) : '',
       pkgFull: pObj ? pObj.path : '',
-      type: qcol(r, 'Object_Type')
+      type: qcol(r, 'Object_Type'),
+      m: MODEL_N
     };
     OBJS[oidV] = oItem;
     if (pObj && oItem.type !== 'Boundary' && !/^proxyconn?ector$/i.test(oItem.st)) {
@@ -806,35 +1141,38 @@ function buildModel() {
   rows = DB.rows('t_connector');
   for (i = 0; i < rows.length; i++) {
     r = rows[i];
+    var cidRaw = qcol(r, 'Connector_ID');
     CONS.push({
-      id: qcol(r, 'Connector_ID'),
+      id: connKey(cidRaw),
+      localId: cidRaw,
       name: norm(qcol(r, 'Name')),
       st: norm(qcol(r, 'Stereotype')),
       type: norm(qcol(r, 'Connector_Type')),
-      a: qcol(r, 'Start_Object_ID'),
-      b: qcol(r, 'End_Object_ID')
+      a: objKey(qcol(r, 'Start_Object_ID')),
+      b: objKey(qcol(r, 'End_Object_ID'))
     });
   }
 
   rows = DB.rows('t_diagramobjects');
   for (i = 0; i < rows.length; i++) {
     r = rows[i];
-    var did = qcol(r, 'Diagram_ID');
-    var doid = qcol(r, 'Object_ID');
-    if (did == null) continue;
-    if (!DIAGOBJ[did]) DIAGOBJ[did] = [];
-    DIAGOBJ[did].push({
-      oid: doid,
+    var didRaw = qcol(r, 'Diagram_ID');
+    var doidRaw = qcol(r, 'Object_ID');
+    if (didRaw == null) continue;
+    var dk = diagKey(didRaw);
+    if (!DIAGOBJ[dk]) DIAGOBJ[dk] = [];
+    DIAGOBJ[dk].push({
+      oid: objKey(doidRaw),
       l: qcol(r, 'RectLeft'),
       t: qcol(r, 'RectTop'),
       r: qcol(r, 'RectRight'),
       b: qcol(r, 'RectBottom'),
       seq: qcol(r, 'Sequence') || 0
     });
-    if (doid != null) {
-      var sk = String(doid);
+    if (doidRaw != null) {
+      var sk = objKey(doidRaw);
       if (!OBJ_DIAGS[sk]) OBJ_DIAGS[sk] = [];
-      if (OBJ_DIAGS[sk].indexOf(did) < 0) OBJ_DIAGS[sk].push(did);
+      if (OBJ_DIAGS[sk].indexOf(dk) < 0) OBJ_DIAGS[sk].push(dk);
     }
   }
 
@@ -846,28 +1184,33 @@ function buildModel() {
     var dgid = qcol(r, 'DiagramID');
     if (dgid == null) dgid = qcol(r, 'Diagram_ID');
     if (dgid == null) continue;
-    var cid = qcol(r, 'ConnectorID');
-    if (cid == null) cid = qcol(r, 'Connector_ID');
-    if (!DIAGLINK[dgid]) DIAGLINK[dgid] = [];
-    DIAGLINK[dgid].push({ cid: cid });
+    var clid = qcol(r, 'ConnectorID');
+    if (clid == null) clid = qcol(r, 'Connector_ID');
+    var dlk = diagKey(dgid);
+    if (!DIAGLINK[dlk]) DIAGLINK[dlk] = [];
+    DIAGLINK[dlk].push({ cid: connKey(clid) });
   }
 
   rows = DB.rows('t_diagram');
   for (i = 0; i < rows.length; i++) {
     r = rows[i];
-    var dId = qcol(r, 'Diagram_ID');
+    var dIdRaw = qcol(r, 'Diagram_ID');
+    var dId = diagKey(dIdRaw);
     var nm = norm(qcol(r, 'Name'));
-    var dpkgId = qcol(r, 'Package_ID');
+    var dpkgId = pkgKey(qcol(r, 'Package_ID'));
     var dpkg = PKG[dpkgId];
     var pref = detectViewpointPrefix(nm);
     /* Falls kein Präfix im Namen, prüfen ob das Elternpaket exakt wie ein Viewpoint heißt (z. B. "P2", "L4-P4") */
-    if (!pref && dpkg && ADMBW_DATA.vp[dpkg.name]) pref = dpkg.name;
+    if (!pref && dpkg && ADMBW_DATA.vp[dpkg.nameBase || dpkg.name]) pref = dpkg.nameBase || dpkg.name;
     var dobjs = DIAGOBJ[dId] || [];
     var dlinks = DIAGLINK[dId] || [];
     var dItem = {
       id: dId,
-      name: nm || ('Diagramm ' + dId),
+      localId: dIdRaw,
+      name: (MULTI_MODE && MODEL_N > 1 ? '<<M' + MODEL_N + '>> ' : '') + (nm || ('Diagramm ' + dIdRaw)),
+      nameBase: nm || ('Diagramm ' + dIdRaw),
       pkgId: dpkgId,
+      m: MODEL_N,
       pkgPath: dpkg ? (dpkg.shortPath || dpkg.path) : '',
       pkgFull: dpkg ? dpkg.path : '',
       rootPkgName: (dpkg && dpkg.pathIds && dpkg.pathIds.length > 1 && PKG[dpkg.pathIds[1]]) ? PKG[dpkg.pathIds[1]].name : (dpkg ? dpkg.name : ''),
@@ -882,26 +1225,15 @@ function buildModel() {
     if (dpkg) dpkg.diags.push(dItem);
   }
 
-  /* Rekursive Zählung für den Paketbaum */
-  function countTree(node) {
-    var dc = node.diags.length;
-    var oc = node.objs.length;
-    for (var j = 0; j < node.children.length; j++) {
-      countTree(node.children[j]);
-      dc += node.children[j].allDiagsCount;
-      oc += node.children[j].allObjsCount;
-    }
-    node.allDiagsCount = dc;
-    node.allObjsCount = oc;
-  }
-  for (i = 0; i < PKG_ROOTS.length; i++) countTree(PKG_ROOTS[i]);
+  /* Merken des Sicht-Diagramms (Mehrfach-Modus: globales ID wird auf <<M n>>-ID umgestellt) */
+  G.built = false;
 
   rows = DB.rows('t_objectproperties');
   for (i = 0; i < rows.length; i++) {
     r = rows[i];
     var toid = qcol(r, 'Object_ID');
     if (toid == null) continue;
-    var key = String(toid);
+    var key = objKey(toid);
     if (!TAGS[key]) TAGS[key] = [];
     TAGS[key].push({
       p: norm(qcol(r, 'Property')),
@@ -911,8 +1243,9 @@ function buildModel() {
   }
 
   var cmap = {};
-  for (i = 0; i < CONS.length; i++) cmap[CONS[i].id] = CONS[i];
+  for (i = 0; i < CONS.length; i++) cmap[String(CONS[i].id)] = CONS[i];
   DB._cmap = cmap;
+  CONNMAP = cmap;   /* Nachschlagetabelle global über alle geladenen Modelle */
 
   CONNCOUNT = {};
   for (i = 0; i < CONS.length; i++) {
@@ -920,6 +1253,47 @@ function buildModel() {
     CONNCOUNT[ca] = (CONNCOUNT[ca] || 0) + 1;
     CONNCOUNT[cb] = (CONNCOUNT[cb] || 0) + 1;
   }
+
+  /* Mehrfach-Modus: Elemente fusionieren (Name + Stereotype) und Referenzen umbiegen */
+  if (MULTI_MODE) finalizeMerge(MODEL_N);
+  recountPkgs();
+}
+
+/* ================================================================
+   Kennungen im Mehrfach-Modus (siehe keyFor oben):
+   m2_o101 (Element), m2_p7 (Paket), m2_d5 (Sicht), m2_c33 (Beziehung).
+   Modell 1 behält seine Original-Kennungen unverändert.
+   ================================================================ */
+function P_G(id) { return id; }   /* Kompatibilitätshülle: Kennungen sind bereits endgültig */
+function P_LOCAL(g) {
+  var p = parseG(g);
+  return p ? String(p.l) : String(g);
+}
+function parseG(g) {
+  var m = /^m(\d+)_([opdc])(\d+)$/.exec(String(g));
+  return m ? { n: Number(m[1]), t: m[2], l: Number(m[3]) } : null;
+}
+/* Kennungen für eine Anzeige entschlüsseln */
+function dName(oid) {
+  oid = String(oid || '');
+  var p = parseG(oid);
+  if (!p) return oid;
+  var o = OBJS[oid];
+  return (o && o.name) ? o.name : ('<<M' + p.n + '>> #' + p.l);
+}
+function dKey(oid) {
+  var o = OBJS[String(oid || '')];
+  return o ? (o.nameBase || o.name) : String(oid || '');
+}
+
+/* Zählwerte der Paketbäume neu aufbauen (nach jedem Aufbau und nach der Fusion) */
+function recountPkgs() {
+  function recount(node) {
+    var dc = node.diags.length, oc = node.objs.length, z;
+    for (z = 0; z < node.children.length; z++) { recount(node.children[z]); dc += node.children[z].allDiagsCount; oc += node.children[z].allObjsCount; }
+    node.allDiagsCount = dc; node.allObjsCount = oc;
+  }
+  for (var i = 0; i < PKG_ROOTS.length; i++) recount(PKG_ROOTS[i]);
 }
 
 /* Hilfsfunktion: Alle Elemente und Beziehungen einer einzelnen Sicht (Diagramm) ermitteln */
@@ -932,7 +1306,7 @@ function getDiagramData(diagId) {
     if (!o || o.type === 'Boundary' || /^proxyconn?ector$/i.test(o.st)) continue;
     if (!elSet[o.id]) { elSet[o.id] = true; els.push(o); }
   }
-  var cmap = (DB && DB._cmap) || {};
+  var cmap = CONNMAP;
   for (i = 0; i < dlinks.length; i++) {
     var cn = cmap[dlinks[i].cid];
     if (cn && !relAdded[cn.id]) {

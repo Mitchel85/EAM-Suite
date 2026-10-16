@@ -362,6 +362,24 @@
   .btn-sm.danger { background:#FEF2F2; color:#B91C1C; border-color:#FCA5A5; }
   .btn-sm.danger:hover { background:#FEE2E2; }
   #edittoast { position:fixed; left:50%; transform:translateX(-50%); bottom:26px; background:rgba(15,23,42,.93); color:#fff; padding:9px 16px; border-radius:9px; font-size:12.5px; z-index:500; max-width:80vw; }
+
+  /* --- v6: Mehrfach-Modus (mehrere Architekturen verschmelzen) --- */
+  .mmode { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--bw-mid); background:#fff; border:1px solid var(--border); border-radius:6px; padding:5px 10px; cursor:pointer; user-select:none; }
+  .mmode:hover { border-color:var(--bw-blue); color:var(--bw-blue); }
+  .mmode.on { background:var(--bw-blue); color:#fff; border-color:var(--bw-blue); }
+  .mmode input { margin:0; cursor:pointer; }
+  #mergebar { margin-bottom:12px; }
+  .mg-inner { background:#EAF2F8; border:1px solid #93C5FD; border-left:4px solid var(--bw-blue); border-radius:10px; padding:10px 14px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; font-size:12.5px; }
+  .mg-lead { color:var(--bw-blue); }
+  .mg-files { display:flex; flex-wrap:wrap; gap:7px; }
+  .mg-file { display:inline-flex; flex-direction:column; background:#fff; border:1px solid var(--border); border-radius:8px; padding:4px 9px; font-size:11.5px; }
+  .mg-file b { color:var(--bw-blue); font-size:12px; }
+  .mg-file em { font-style:normal; color:var(--bw-mid); font-size:10.5px; }
+  .mg-act { display:inline-flex; flex-wrap:wrap; gap:6px; }
+  #mttoast { position:fixed; left:50%; transform:translateX(-50%); bottom:26px; background:rgba(0,68,113,.95); color:#fff; padding:10px 18px; border-radius:9px; font-size:12.5px; z-index:520; max-width:84vw; box-shadow:0 6px 22px rgba(0,40,80,.3); }
+  @media print {
+    .mmode, #mergebar, #mttoast { display:none !important; }
+  }
   @media print {
     #editdrawer, #editmodal, #edittoast, .vedit { display:none !important; }
   }
@@ -386,7 +404,7 @@
         Mit Sofort-Suche und <b>1-Klick-Export jeder Sicht als PNG oder Excel (.xlsx)</b>.<br>
         <span style="color:#004471;font-weight:600">Datenschutz: 100 % Offline-Verarbeitung im Browser — keine Daten verlassen Ihren Rechner.</span>
       </div>
-      <input type="file" id="file" accept=".qea,.eapx,.qeax,.sqlite" style="display:none">
+      <input type="file" id="file" accept=".qea,.eapx,.qeax,.sqlite" multiple style="display:none">
     </div>
   </div>
 
@@ -396,7 +414,8 @@
       <div class="mb-top">
         <div class="mb-model">Modell: <b id="modellname">—</b> &nbsp;·&nbsp; <span id="stats"></span></div>
         <div class="mb-actions">
-          <button class="btn-sm" onclick="el('file').click()" title="Andere QEA-/EAPX-Datei öffnen">📂 Andere Datei laden</button>
+          <label class="mmode" id="multilabel" onclick="toggleMultiMode(!MULTI_MODE)" title="Mehrere Architekturdateien gleichzeitig laden und zu einer Landkarte verschmelzen"><input type="checkbox" id="multichk" onchange="toggleMultiMode(this.checked)"> Mehrfach-Modus</label>
+          <button class="btn-sm" onclick="el('file').click()" title="QEA-/EAPX-Datei(en) öffnen">📂 Datei laden</button>
           <button class="btn-sm amber" id="editbtn" onclick="EDIT.openPanel()" title="Änderungen vormerken &amp; als neue QEA-Datei speichern">✏️ Bearbeiten <span id="editcnt">0</span></button>
         </div>
       </div>
@@ -421,6 +440,7 @@
       <div class="quick-bar" id="quickbar"></div>
     </div>
 
+    <div id="mergebar" style="display:none"></div>
     <div id="warnbar" style="display:none"></div>
 
     <!-- Haupt-Navigationsreiter -->
@@ -499,3 +519,4 @@
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
 <div id="edittoast" hidden></div>
+<div id="mttoast" hidden></div>

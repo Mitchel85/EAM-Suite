@@ -350,27 +350,37 @@ function pathFind() {
     res.innerHTML = '<div class="pnote">⚠ Bitte erst <b>Start- und Ziel-Element</b> wählen (Suchfelder links).</div>';
     return;
   }
-  if (!PATH_ADJ) { PATH_ADJ = buildAdjacency(); PATH_COMP = null; }
+  /* Platzhalter entschlüsseln: Im Einzelmodell entspricht die Kennung dem Modell,
+     im Mehrfach-Modus wird der lokale Teil für die Verbindungssuche verwendet. */
+  if (MULTI_MODE) { PATH_ADJ = buildAdjacency(); PATH_COMP = null; }
+  var gStart = decodeNodeId(PATH.start), gEnd = decodeNodeId(PATH.end);
   var s = OBJS[PATH.start], e = OBJS[PATH.end];
-  var out = { s: s, e: e, mode: PATH.mode, directed: PATH.directed, maxHops: PATH.maxHops, none: false };
+  var out = { s: s, e: e, mode: PATH.mode, directed: PATH.directed, maxHops: PATH.maxHops, none: false, gs: gStart, ge: gEnd };
   PATH.last = out;
   PATH.selPath = 0;
 
   if (PATH.start === PATH.end) { out.trivial = true; pathRenderResults(); return; }
-  var sDeg = (PATH_ADJ[PATH.start] || []).length;
-  var eDeg = (PATH_ADJ[PATH.end] || []).length;
+  var sDeg = (PATH_ADJ[gStart] || []).length;
+  var eDeg = (PATH_ADJ[gEnd] || []).length;
   if (!sDeg || !eDeg) { out.isolated = { s: !sDeg, e: !eDeg }; pathRenderResults(); return; }
 
   if (PATH.mode === 'multi') {
-    var r = findAltPaths(PATH_ADJ, PATH.start, PATH.end, PATH.directed, PATH.maxHops, 5);
+    var r = findAltPaths(PATH_ADJ, gStart, gEnd, PATH.directed, PATH.maxHops, 5);
     out.paths = r.paths; out.ms = r.ms; out.capped = r.capped;
     out.none = !r.paths.length;
   } else {
-    var r2 = findShortestPath(PATH_ADJ, PATH.start, PATH.end, PATH.directed, PATH.maxHops);
+    var r2 = findShortestPath(PATH_ADJ, gStart, gEnd, PATH.directed, PATH.maxHops);
     out.steps = r2.steps; out.ms = r2.ms;
     out.none = !r2.steps;
   }
   pathRenderResults();
+}
+
+/* Kennungen für die Verbindungssuche im Modell auflösen */
+function decodeNodeId(x) {
+  if (!MULTI_MODE) return x;
+  var g = groupOf(x);
+  return (g && g.l != null) ? String(g.l) : String(x);
 }
 
 function pathRenderResults() {
