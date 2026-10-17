@@ -1886,6 +1886,8 @@ function wireUpload() {
     /* Klicks auf die beiden Schaltflächen haben eigene Handler */
     if (e && e.target && e.target.closest && e.target.closest('.upbtn')) return;
     if (e && e.target && e.target.closest && e.target.closest('.up-hint')) return;
+    /* Kriterien-Häkchen & Warnhinweis: NICHT den Dateidialog öffnen (Bubbling-Bug) */
+    if (e && e.target && e.target.closest && e.target.closest('.semwrap')) return;
     pickFiles(false);
   };
   input.onchange = function () {
