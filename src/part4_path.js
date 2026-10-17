@@ -71,7 +71,7 @@ function findAltPaths(adj, startId, endId, directed, maxHops, maxPaths) {
   var t0 = pathNowMs();
   startId = String(startId); endId = String(endId);
   maxPaths = maxPaths || 5;
-  var paths = [], stepsCount = 0, maxSteps = 2500;
+  var paths = [], stepsCount = 0, maxSteps = 20000;
   var inBranch = {};
   inBranch[startId] = true;
 
@@ -83,8 +83,16 @@ function findAltPaths(adj, startId, endId, directed, maxHops, maxPaths) {
     if (cur === endId && curPath.length > 0) { paths.push(curPath.slice(0)); return; }
     if (curPath.length >= maxHops) return;
     var edges = (adj[cur] || []).slice(0);
-    /* Hubs zuletzt traversieren (Verzweigungsexplosion eindämmen) */
-    edges.sort(function (x, y) { return deg(x.to) - deg(y.to); });
+    /* Sortierung: 1) Kanten DIREKT zum Ziel zuerst (sonst verbrauchen
+       Sackgassen mit niedrigem Grad das Schritt-Budget, bevor die Zielkante
+       besucht wird — Bug: 0 Pfade trotz direkter Verbindung bei Hubs mit
+       Grad >40). 2) Hubs zuletzt (Verzweigungsexplosion eindämmen). */
+    edges.sort(function (x, y) {
+      var xz = (String(x.to) === endId) ? 0 : 1;
+      var yz = (String(y.to) === endId) ? 0 : 1;
+      if (xz !== yz) return xz - yz;
+      return deg(x.to) - deg(y.to);
+    });
     for (var i = 0; i < edges.length; i++) {
       var e = edges[i];
       if (directed && e.dir !== 1) continue;

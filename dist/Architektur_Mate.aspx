@@ -450,7 +450,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 Architektur Mate <span class="badge-v">v8.0 · Ihr Architekturgehilfe · Multi-Architektur</span></h1>
+      <h1>🤝 Architektur Mate <span class="badge-v">v8.1 · Ihr Architekturgehilfe · Multi-Architektur</span></h1>
       <p>QEA-Architekturen verstehen <b>und bearbeiten</b>: Pakete &amp; Sichten erkunden, im Graphen analysieren, Verbindungen nachweisen, Elemente/Pakete/Sichten/Beziehungen ändern und als neue .qea speichern — 100&nbsp;% lokal im Browser, ohne KI.</p>
     </div>
   </div>
@@ -595,7 +595,7 @@
   </div>
 </main>
 <footer>
-  <b>Architektur Mate v8.0</b> · Ihr Architekturgehilfe · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
+  <b>Architektur Mate v8.1</b> · Ihr Architekturgehilfe · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
@@ -2004,18 +2004,79 @@ function semLoose(s) {
 function semUsable(t) { return t && t.length >= 4; }
 
 /* Zusatzmaterial eines Elements einsammeln (Tags, Alias, Notiz) */
+/* ------------------------------------------------------------------
+   SEMANTIK-CACHE & INDEX (Performance-Fix)
+   Vorher: findMergeHost scante für JEDES Element alle Objekte linear
+   (O(N²)) und rief semMatch/semNorm (teure Regex) millionenfach auf.
+   Große Architekturen (2× 5000+ Elemente) → Browser-Freeze/„Absturz".
+   Jetzt: invertierte Indizes (id/name/alias -> Objekt-Keys in
+   Einfüge-Reihenfolge) → Kandidatenlookup in O(1) je Element.
+   Die Wahl des Trägerknotens bleibt mit der alten Linearsuche
+   identisch: erste Position in der OBJS-Reihenfolge gewinnt.
+   ------------------------------------------------------------------ */
+var SEMNORM_CACHE = {};
+var SEM_IDX = null;   /* { id:{}, name:{}, alias:{} } + SEM_SEQ */
+var SEM_SEQ = {};
+
+function semNormC(s) {
+  s = String(s == null ? '' : s);
+  var v = SEMNORM_CACHE[s];
+  if (v !== undefined) return v;
+  v = semNorm(s);
+  if (SEMNORM_CACHE._n == null) SEMNORM_CACHE._n = 0;
+  if (SEMNORM_CACHE._n < 400000) { SEMNORM_CACHE[s] = v; SEMNORM_CACHE._n++; }
+  return v;
+}
+
+/* Index über alle Trägerknoten (name vorhanden, kein Package) aufbauen.
+   Einfüge-Reihenfolge = Object.keys(OBJS)-Reihenfolge → gleiche Trägerwahl
+   wie die alte Linearsuche. */
+function semBuildIdx() {
+  SEM_IDX = { id: {}, name: {}, alias: {} };
+  SEM_SEQ = {};
+  var seq = 0, k, o, i, m, key;
+  var keys = Object.keys(OBJS);
+  for (i = 0; i < keys.length; i++) {
+    k = keys[i];
+    o = OBJS[k];
+    if (!o || !o.name || o.type === 'Package') continue;
+    if (!o.sem) o.sem = semMeta(k);
+    m = o.sem;
+    SEM_SEQ[k] = seq++;
+    for (var j = 0; j < m.ids.length; j++) {
+      if (!SEM_IDX.id[m.ids[j]]) SEM_IDX.id[m.ids[j]] = [];
+      SEM_IDX.id[m.ids[j]].push(k);
+    }
+    key = semNormC(o.name);
+    if (key) {
+      if (!SEM_IDX.name[key]) SEM_IDX.name[key] = [];
+      SEM_IDX.name[key].push(k);
+    }
+    if (m.alias) {
+      if (!SEM_IDX.alias[m.alias]) SEM_IDX.alias[m.alias] = [];
+      SEM_IDX.alias[m.alias].push(k);
+    }
+  }
+}
+
+/* Semantik-Invalidierung nach Fusion/Ladung/Reset */
+function semInvalidate() {
+  SEM_IDX = null;
+  SEM_SEQ = {};
+}
+
 function semMeta(k) {
   var o = OBJS[k] || {};
   var out = { ids: [], name: '', alias: '', note: '' };
   out.name = String(o.name || '');
-  out.alias = semNorm(o.alias || '');
-  out.note = semNorm(o.note || '');
+  out.alias = semNormC(o.alias || '');
+  out.note = semNormC(o.note || '');
   var t = TAGS[k] || [];
   for (var i = 0; i < t.length; i++) {
-    var p = semNorm(t[i].p), v = String(t[i].v == null ? '' : t[i].v).trim();
+    var p = semNormC(t[i].p), v = String(t[i].v == null ? '' : t[i].v).trim();
     if (!v) continue;
     /* Identität: URI/UUID/GUID-Kennungen (Referenzstandard-Stempel) */
-    if (/uri|uuid|guid|identifier/.test(p) && v.length >= 6) out.ids.push(semNorm(v));
+    if (/uri|uuid|guid|identifier/.test(p) && v.length >= 6) out.ids.push(semNormC(v));
   }
   return out;
 }
@@ -2117,12 +2178,14 @@ function finalizeMerge(n) {
     o.sem = semMeta(k);
   }
   var nHost = 0, nFresh = 0;
+  /* Index einmal je Modell aufbauen — ersetzt die frühere O(N²)-Linearsuche */
+  semBuildIdx();
   for (k in OBJS) {
     if (!OBJS.hasOwnProperty(k)) continue;
     o = OBJS[k];
     if (Number(o.m) !== Number(n)) continue;
     if (!o.name || o.type === 'Package') { nFresh++; continue; }
-    var host = SEM_MODE ? findMergeHost(o, n) : null;
+    var host = SEM_MODE ? findMergeHost(k, n) : null;
     if (host) cands.push({ from: k, to: host });
     else nFresh++;
   }
@@ -2131,43 +2194,64 @@ function finalizeMerge(n) {
   if (mf) { mf.cands = cands.length; mf.fresh = nFresh; mf.merged = cands.length; }
   /* Vollzogene Fusionen der bereits festgeschriebenen Modelle nicht erneut anbieten */
   MERGE_CANDS = MERGE_CANDS.filter(function (c) { return OBJS[c.from] && OBJS[c.to]; });
+  semInvalidate();
 }
 
 /* Sucht für ein Element des Modells n einen bereits vorhandenen Trägerknoten.
-   Stufen werden „abgeschält": Stufe 1 immer, dann 2, dann 3, dann 4.
-   Ergebnis wird am Element als sem.hit vermerkt (erreichte Stufe).
-
-   Hinweis zu „taken": Ein M1-Knoten darf durchaus mehrere Elemente desselben
-   neuen Modells aufnehmen (z. B. drei Testarchitektur-Projekte, die in MASC ein Element
-   abbilden). Verhindert werden muss nur, dass sich die ZIELE überschneiden —
-   also dass zwei verschiedene M1-Knoten beide als Träger desselben Elements
-   gewählt werden können. Deshalb wird pro Quell-Element der erste Treffer
-   genommen, nicht der Zielknoten verbraucht. */
-function findMergeHost(o, n) {
-  var k, c;
-  for (k in OBJS) {
-    if (!OBJS.hasOwnProperty(k)) continue;
-    c = OBJS[k];
-    if (c === o || Number(c.m) === Number(n)) continue;
-    if (!c.name || c.type === 'Package') continue;
-    if (!c.sem) c.sem = semMeta(k);
-    if (semMatch(o.sem, c.sem)) return k;
+   Index-basiert (semBuildIdx): Kandidaten kommen aus den invertierten
+   Indizes (GUID/Name/Alias), Trägerwahl = früheste OBJS-Einfüge-Reihenfolge
+   (identisch zur früheren Linearsuche, aber O(1) statt O(N) je Element). */
+function findMergeHost(k, n) {
+  if (!SEM_IDX) semBuildIdx();
+  var o = OBJS[k];
+  if (!o || !o.sem) return null;
+  var P = MATCH_PRINCIPLE;
+  var candLists = [], i, j, key, lst;
+  if (P.guid) {
+    for (i = 0; i < o.sem.ids.length; i++) {
+      lst = SEM_IDX.id[o.sem.ids[i]];
+      if (lst) candLists.push(lst);
+    }
   }
-  return null;
+  if (P.name) {
+    lst = SEM_IDX.name[semNormC(o.name)];
+    if (lst) candLists.push(lst);
+  }
+  if (P.alias && o.sem.alias) {
+    lst = SEM_IDX.alias[o.sem.alias];
+    if (lst) candLists.push(lst);
+  }
+  var best = null, bestSeq = Infinity, seq;
+  for (i = 0; i < candLists.length; i++) {
+    lst = candLists[i];
+    for (j = 0; j < lst.length; j++) {
+      key = lst[j];
+      if (key === k) continue;
+      var c = OBJS[key];
+      if (!c) continue;
+      if (Number(c.m) === Number(n)) continue;
+      seq = SEM_SEQ[key];
+      if (seq == null) continue;
+      if (seq < bestSeq) { bestSeq = seq; best = key; }
+    }
+  }
+  return best;
 }
 /* Vorschau: wie viele Elemente würden zusammengelegt?
    Zählt Elemente, die in einem AKTIVEN Kriterium übereinstimmen. */
 function semPreview(n) {
   var res = { total: 0, geteilt: 0 };
   var k;
+  semBuildIdx();
   for (k in OBJS) {
     if (!OBJS.hasOwnProperty(k)) continue;
     var o = OBJS[k];
     if (Number(o.m) !== Number(n) || !o.name || o.type === 'Package') continue;
     res.total++;
     if (!o.sem) o.sem = semMeta(k);
-    if (findMergeHost(o, n)) res.geteilt++;
+    if (findMergeHost(k, n)) res.geteilt++;
   }
+  semInvalidate();
   return res;
 }
 
@@ -2267,6 +2351,7 @@ function commitMerge(n, skip) {
     if (oo && oo.name) delete MODEL_KEYMAP[mergeKey(oo.name, oo.st)];
   }
   OBJS = gO;
+  semInvalidate();
   recountPkgs();
   return { merged: cntMerged, fresh: cntFresh };
 }
@@ -2340,6 +2425,7 @@ function resetModelData() {
   MERGE_CANDS = [];
   MODEL_N = 0; MODEL_FILES = []; MODEL_KEYMAP = {}; CONNMAP = {};
   MODEL_DBS = {}; MODEL_DB = null; MODEL_OBJS = {}; MODEL_PKG = {}; MODEL_DIAGS = []; MODEL_TAGS = {};
+  SEMNORM_CACHE = {}; SEM_IDX = null; SEM_SEQ = {};
 }
 
 /* Ein Modell in die verschmolzene Landkarte einarbeiten */
@@ -2370,7 +2456,9 @@ function addModelToMerge(buffer, name) {
   mi.pkg = Object.keys(PKG).length - prePkg;
   mi.diag = DIAGS.length - preDiag;
   mi.con = CONS.length - preCon;
-  if (mi.obj == null) mi.obj = Object.keys(OBJS).length - preObj;
+  /* Achtung: mi.obj ist mit 0 initialisiert — ein Guard `mi.obj == null`
+     griffe nie (0 == null ist in JS false) → M2 zeigte „0 Elemente“. */
+  mi.obj = Object.keys(OBJS).length - preObj;
 
   var i;
   /* Paket-Sichtbarkeit über den Explorer (neue Wurzelpakete einklappen) */
@@ -5566,7 +5654,7 @@ function findAltPaths(adj, startId, endId, directed, maxHops, maxPaths) {
   var t0 = pathNowMs();
   startId = String(startId); endId = String(endId);
   maxPaths = maxPaths || 5;
-  var paths = [], stepsCount = 0, maxSteps = 2500;
+  var paths = [], stepsCount = 0, maxSteps = 20000;
   var inBranch = {};
   inBranch[startId] = true;
 
@@ -5578,8 +5666,16 @@ function findAltPaths(adj, startId, endId, directed, maxHops, maxPaths) {
     if (cur === endId && curPath.length > 0) { paths.push(curPath.slice(0)); return; }
     if (curPath.length >= maxHops) return;
     var edges = (adj[cur] || []).slice(0);
-    /* Hubs zuletzt traversieren (Verzweigungsexplosion eindämmen) */
-    edges.sort(function (x, y) { return deg(x.to) - deg(y.to); });
+    /* Sortierung: 1) Kanten DIREKT zum Ziel zuerst (sonst verbrauchen
+       Sackgassen mit niedrigem Grad das Schritt-Budget, bevor die Zielkante
+       besucht wird — Bug: 0 Pfade trotz direkter Verbindung bei Hubs mit
+       Grad >40). 2) Hubs zuletzt (Verzweigungsexplosion eindämmen). */
+    edges.sort(function (x, y) {
+      var xz = (String(x.to) === endId) ? 0 : 1;
+      var yz = (String(y.to) === endId) ? 0 : 1;
+      if (xz !== yz) return xz - yz;
+      return deg(x.to) - deg(y.to);
+    });
     for (var i = 0; i < edges.length; i++) {
       var e = edges[i];
       if (directed && e.dir !== 1) continue;
