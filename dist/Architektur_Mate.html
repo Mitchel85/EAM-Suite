@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Architektur Mate — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
 <style>
   :root {
@@ -437,6 +438,11 @@
   .mg-crit { display:flex; flex-wrap:wrap; gap:12px; align-items:center; font-size:11.5px; color:var(--bw-mid); margin-top:7px; padding-top:7px; border-top:1px dashed var(--border); }
   .critbox { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:var(--bw-blue); font-weight:700; cursor:pointer; }
   .critbox input { margin:0; cursor:pointer; }
+  #loadovl { position:fixed; inset:0; background:rgba(15,23,42,.72); display:flex; align-items:center; justify-content:center; z-index:9999; }
+  #loadovl[hidden] { display:none; }
+  .lovl-box { background:#fff; border-radius:14px; padding:26px 34px; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,.4); max-width:340px; }
+  .lovl-spin { width:34px; height:34px; margin:0 auto 12px; border:4px solid #dbe4ee; border-top-color:#0a4d8c; border-radius:50%; animation:lovlrot 0.9s linear infinite; }
+  @keyframes lovlrot { to { transform: rotate(360deg); } }
   #mttoast { position:fixed; left:50%; transform:translateX(-50%); bottom:26px; background:rgba(0,68,113,.95); color:#fff; padding:10px 18px; border-radius:9px; font-size:12.5px; z-index:520; max-width:84vw; box-shadow:0 6px 22px rgba(0,40,80,.3); }
   @media print {
     .mmode, #mergebar, #mttoast { display:none !important; }
@@ -450,7 +456,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 Architektur Mate <span class="badge-v">v8.2 · Ihr Architekturgehilfe · Multi-Architektur</span></h1>
+      <h1>🤝 Architektur Mate <span class="badge-v">v8.3 · Ihr Architekturgehilfe · Multi-Architektur</span></h1>
       <p>QEA-Architekturen verstehen <b>und bearbeiten</b>: Pakete &amp; Sichten erkunden, im Graphen analysieren, Verbindungen nachweisen, Elemente/Pakete/Sichten/Beziehungen ändern und als neue .qea speichern — 100&nbsp;% lokal im Browser, ohne KI.</p>
     </div>
   </div>
@@ -486,6 +492,13 @@
 
       <div class="up-hint" id="uphint">Mehrere Dateien werden zu <b>einer Landkarte</b> verschmolzen: erkannte Elemente teilen sich einen Knoten — dadurch werden <b>modellübergreifende Zusammenhänge</b> sichtbar.</div>
       <input type="file" id="file" accept=".qea,.eapx,.qeax,.sqlite" multiple style="display:none">
+      <div id="loadovl" hidden>
+        <div class="lovl-box">
+          <div class="lovl-spin"></div>
+          <div id="loadovltxt">🔃 Datei wird gelesen … bitte warten</div>
+          <div class="dim" style="font-size:11px;margin-top:8px">Große Architekturen brauchen auf dem Handy etwas länger — der Bildschirm kann dabei kurz stehen bleiben.</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -595,7 +608,7 @@
   </div>
 </main>
 <footer>
-  <b>Architektur Mate v8.2</b> · Ihr Architekturgehilfe · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
+  <b>Architektur Mate v8.3</b> · Ihr Architekturgehilfe · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
@@ -5522,6 +5535,18 @@ function showUpHint(html) {
   h.style.display = 'block';
   h.innerHTML = html;
 }
+/* Lade-Overlay (synchrones Parsen großer QEA-Dateien -> sichtbare Rückmeldung) */
+function showLoadOverlay(txt) {
+  var ov = el('loadovl');
+  if (!ov) return;
+  var t = el('loadovltxt');
+  if (t && txt) t.textContent = txt;
+  ov.removeAttribute('hidden');
+}
+function hideLoadOverlay() {
+  var ov = el('loadovl');
+  if (ov) ov.setAttribute('hidden', '');
+}
 function wireUpload() {
   var zone = el('dropzone'), input = el('file');
   if (!zone || !input) return;
@@ -5559,9 +5584,22 @@ function wireUpload() {
         /* Einzelmodus nur, wenn der Nutzer genau eine Datei ohne Mehrfach-Modus lädt:
            dann ersetzt die Datei das Modell wie bisher. */
         SINGLE = !multi;
-        loadQea(rd.result, f.name);
-        if (multi) showUpHint('Verschmelze … ' + idx + '/' + arr.length + ' (' + esc(f.name) + ')');
-        setTimeout(next, 60);
+        /* Lade-Overlay ANZEIGEN und erst rendern lassen, BEVOR das synchrone Parsen
+           losläuft — sonst friert der Bildschirm ohne Rückmeldung ein (v. a. Handy:
+           große QEA-Dateien brauchen dort deutlich länger). */
+        showLoadOverlay('🔃 ' + esc(f.name) + ' wird eingelesen … bitte warten');
+        setTimeout(function () {
+          try {
+            loadQea(rd.result, f.name);
+          } catch (e) {
+            hideLoadOverlay();
+            toast('⚠ Fehler beim Lesen von ' + esc(f.name) + ': ' + e.message);
+            return;
+          }
+          hideLoadOverlay();
+          if (multi) showUpHint('Verschmelze … ' + idx + '/' + arr.length + ' (' + esc(f.name) + ')');
+          setTimeout(next, 60);
+        }, 80);
       };
       rd.readAsArrayBuffer(f);
     })();

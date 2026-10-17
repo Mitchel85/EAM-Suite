@@ -1879,6 +1879,18 @@ function showUpHint(html) {
   h.style.display = 'block';
   h.innerHTML = html;
 }
+/* Lade-Overlay (synchrones Parsen großer QEA-Dateien -> sichtbare Rückmeldung) */
+function showLoadOverlay(txt) {
+  var ov = el('loadovl');
+  if (!ov) return;
+  var t = el('loadovltxt');
+  if (t && txt) t.textContent = txt;
+  ov.removeAttribute('hidden');
+}
+function hideLoadOverlay() {
+  var ov = el('loadovl');
+  if (ov) ov.setAttribute('hidden', '');
+}
 function wireUpload() {
   var zone = el('dropzone'), input = el('file');
   if (!zone || !input) return;
@@ -1916,9 +1928,22 @@ function wireUpload() {
         /* Einzelmodus nur, wenn der Nutzer genau eine Datei ohne Mehrfach-Modus lädt:
            dann ersetzt die Datei das Modell wie bisher. */
         SINGLE = !multi;
-        loadQea(rd.result, f.name);
-        if (multi) showUpHint('Verschmelze … ' + idx + '/' + arr.length + ' (' + esc(f.name) + ')');
-        setTimeout(next, 60);
+        /* Lade-Overlay ANZEIGEN und erst rendern lassen, BEVOR das synchrone Parsen
+           losläuft — sonst friert der Bildschirm ohne Rückmeldung ein (v. a. Handy:
+           große QEA-Dateien brauchen dort deutlich länger). */
+        showLoadOverlay('🔃 ' + esc(f.name) + ' wird eingelesen … bitte warten');
+        setTimeout(function () {
+          try {
+            loadQea(rd.result, f.name);
+          } catch (e) {
+            hideLoadOverlay();
+            toast('⚠ Fehler beim Lesen von ' + esc(f.name) + ': ' + e.message);
+            return;
+          }
+          hideLoadOverlay();
+          if (multi) showUpHint('Verschmelze … ' + idx + '/' + arr.length + ' (' + esc(f.name) + ')');
+          setTimeout(next, 60);
+        }, 80);
       };
       rd.readAsArrayBuffer(f);
     })();
