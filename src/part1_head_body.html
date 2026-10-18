@@ -38,6 +38,11 @@
 
   /* Zusammenführungs-Tiefe */
   .semwrap { margin-top:14px; border:1px solid var(--border); border-radius:9px; background:#fff; padding:10px 12px; text-align:left; }
+  .semwrap-details { margin-top:14px; border:1px solid var(--border); border-radius:9px; background:#f8fafc; padding:0; text-align:left; }
+  .semwrap-details summary { cursor:pointer; font-size:12.5px; font-weight:700; color:var(--bw-blue); padding:9px 12px; user-select:none; }
+  .semwrap-details summary:hover { color:#003a5c; }
+  .semwrap-details[open] summary { border-bottom:1px solid var(--border); }
+  .semwrap-details .semwrap { margin-top:0; border:none; border-radius:0 0 9px 9px; }
   .semhead { font-size:12.5px; font-weight:700; color:var(--bw-blue); display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
   .semtoggle { display:inline-flex; align-items:center; gap:5px; font-weight:600; font-size:12px; color:var(--bw-mid); cursor:pointer; }
   .semtoggle input { margin:0; cursor:pointer; }
@@ -467,28 +472,26 @@
     <div class="drop" id="dropzone">
       <div class="big">📂 Architekturdatei(en) hier ablegen oder klicken</div>
       <div class="small">
-        <b>Der Analyse-Werkzeugkasten für Architekturen:</b> Pakete &amp; Sichten erkunden, Gesamtzusammenhang im Graph analysieren, Verbindungen zweier Elemente nachweisen — <b>ohne KI, ohne Installation, ohne Namenskonventionen</b>.<br>
-        Mit Sofort-Suche und <b>1-Klick-Export jeder Sicht als PNG oder Excel (.xlsx)</b>.<br>
-        <span style="color:#004471;font-weight:600">Datenschutz: 100 % Offline-Verarbeitung im Browser — keine Daten verlassen Ihren Rechner.</span>
+        <b>Erkunden · analysieren · bearbeiten.</b> Pakete &amp; Sichten navigieren, Zusammenhänge im Graph verstehen, Verbindungen nachweisen — und Änderungen als <b>neue</b> .qea speichern.<br>
+        <span style="color:#004471;font-weight:600">100 % Offline — keine Daten verlassen Ihren Rechner.</span>
       </div>
       <div class="up-actions">
         <button type="button" class="upbtn one" onclick="pickFiles(false)">📄 Eine Architektur laden</button>
-        <button type="button" class="upbtn many" onclick="pickFiles(true)">🗂️ Mehrere Architekturen verschmelzen</button>
+        <button type="button" class="upbtn many" onclick="pickFiles(true)">🗂️ Mehrere verschmelzen</button>
       </div>
 
-      <!-- Zusam menführung gleichartiger Elemente: zwei Prinzipien, einzeln an-/abwählbar -->
-      <div class="semwrap">
-        <div class="semhead">Zusammenführung gleichartiger Elemente:
-          <span class="dim">Wählen Sie die Kriterien — einzeln oder kombiniert.</span>
+      <details class="semwrap-details">
+        <summary>⚙️ Erweitert: Kriterien für die Zusammenführung</summary>
+        <div class="semwrap">
+          <div class="semopts" id="semopts">
+            <label class="semopt"><input type="checkbox" id="semchk" checked onchange="setSemMode(this.checked)"> <span><b>Semantik einbeziehen</b> <em>Elemente werden als gleichartig erkannt</em></span></label>
+            <label class="semopt"><input type="checkbox" id="semmatch-guid" checked onchange="setMatchPrinciple('guid', this.checked)"> <span><b>Über GUID</b> <em>zusammenlegen über die eindeutige Identität (URI/UUID) — empfohlen</em></span></label>
+            <label class="semopt experimental"><input type="checkbox" id="semmatch-name" onchange="setMatchPrinciple('name', this.checked)"> <span><b>Über den Namen</b> <em>zusammenlegen über die Bezeichnung</em> <span class="exp-tag">experimentell</span></span></label>
+            <label class="semopt experimental"><input type="checkbox" id="semmatch-alias" onchange="setMatchPrinciple('alias', this.checked)"> <span><b>Über den Alias</b> <em>Alternativnamen mit einbeziehen</em> <span class="exp-tag">experimentell</span></span></label>
+          </div>
+          <div class="semnote warn" id="semnote">⚠ <b>Empfohlen:</b> nur „Über GUID“ aktiv. Weitere Kriterien („Namen“, „Alias“) sind <b>experimentell</b> und können instabil sein. Aktiv: <b>Über GUID</b>.</div>
         </div>
-        <div class="semopts" id="semopts">
-          <label class="semopt"><input type="checkbox" id="semchk" checked onchange="setSemMode(this.checked)"> <span><b>Semantik einbeziehen</b> <em>Elemente werden als gleichartig erkannt</em></span></label>
-          <label class="semopt"><input type="checkbox" id="semmatch-guid" checked onchange="setMatchPrinciple('guid', this.checked)"> <span><b>Über GUID</b> <em>zusammenlegen über die eindeutige Identität (URI/UUID) — empfohlen</em></span></label>
-          <label class="semopt experimental"><input type="checkbox" id="semmatch-name" onchange="setMatchPrinciple('name', this.checked)"> <span><b>Über den Namen</b> <em>zusammenlegen über die Bezeichnung</em> <span class="exp-tag">experimentell</span></span></label>
-          <label class="semopt experimental"><input type="checkbox" id="semmatch-alias" onchange="setMatchPrinciple('alias', this.checked)"> <span><b>Über den Alias</b> <em>Alternativnamen mit einbeziehen</em> <span class="exp-tag">experimentell</span></span></label>
-        </div>
-        <div class="semnote warn" id="semnote">⚠ <b>Achtung:</b> „Über GUID" ist die <b>empfohlene</b> und stabilste Einstellung. Je mehr Kriterien Sie zusätzlich ankreuzen, desto <b>instabiler</b> wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie <b>abstürzt</b>. Die Kriterien „Über den Namen" und „Über den Alias" gelten als <b>experimentell</b>. Aktiv: <b>Über GUID</b>.</div>
-      </div>
+      </details>
 
       <div class="up-hint" id="uphint">Mehrere Dateien werden zu <b>einer Landkarte</b> verschmolzen: erkannte Elemente teilen sich einen Knoten — dadurch werden <b>modellübergreifende Zusammenhänge</b> sichtbar.</div>
       <input type="file" id="file" accept=".qea,.eapx,.qeax,.sqlite" multiple style="display:none">

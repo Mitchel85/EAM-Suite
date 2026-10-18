@@ -1,67 +1,55 @@
-# Architektur Mate — Kurzanleitung (Ihr Architekturgehilfe)
+# Architektur Mate — Kurzanleitung
 
 **Ein Satz:** QEA-Architektur(en) im Browser öffnen, verstehen, ändern — und als **neue** Datei speichern. Ohne Installation, alles bleibt lokal.
 
 ---
 
-## In 5 Minuten
+## In 4 Schritten
 
-### 1 · Öffnen
-`dist/Architektur_Mate.html` herunterladen, per Doppelklick im Browser öffnen (Edge / Chrome / Firefox).
+### 1 · Öffnen & Laden
+`dist/Architektur_Mate.html` herunterladen, per Doppelklick im Browser öffnen. Dann:
+- **„📄 Eine Architektur laden"** — eine Datei
+- **„🗂️ Mehrere verschmelzen"** — zwei oder mehr zu **einer** Landkarte
 
-### 2 · Laden
-- **Eine Datei:** Button **„📄 Eine Architektur laden"**
-- **Mehrere Dateien:** Button **„🗂️ Mehrere Architekturen verschmelzen"**
+Datei(en) aufziehen oder anklicken.
 
-Datei(en) auf die Fläche ziehen oder anklicken.
+### 2 · (Nur mehrere) Kriterien wählen
+Unter **„⚙️ Erweitert"** ankreuzen, wonach gleiche Elemente erkannt werden. **Standard: „Über GUID"** — das ist die empfohlene, stabilste Einstellung. „Über den Namen" und „Über den Alias" sind experimentell. Danach erscheint ein **Prüf-Dialog**: Häkchen einzeln entfernen, wenn etwas eigenständig bleiben soll, dann **„✔ Ausgewählte zusammenlegen"**.
 
-### 3 · (Bei mehreren Dateien) Kriterien wählen
-Ankreuzen, wonach gleiche Elemente erkannt werden:
-
-| ☑ | Kriterium | Bedeutung |
-|---|---|---|
-| ☑ | **Über GUID** | gleiche Kennung (URI/UUID) — **empfohlen** |
-| ☐ | **Über den Namen** | gleiche Bezeichnung — *experimentell* |
-| ☐ | **Über den Alias** | gleicher Alternativname — *experimentell* |
-
-Kästchen einzeln an/aus — beliebig kombinieren. **Standard ist nur „Über GUID".** ⚠️ **Achtung:** Je mehr Kriterien Sie ankreuzen, desto **instabiler** wird die Anwendung und desto höher ist die Wahrscheinlichkeit, dass sie **abstürzt**. Die anderen beiden Kriterien gelten als **experimentell**. Danach erscheint ein **Prüf-Dialog**: jede Überschneidung einzeln sichtbar, Häkchen rausnehmen, wenn etwas eigenständig bleiben soll. Dann **„✔ Ausgewählte zusammenlegen"**.
-
-### 4 · Ansehen
+### 3 · Ansehen
 - Links: Baum mit **Paketen & Sichten**
 - **Suche** oben: sofort über alle Elemente
-- Klick auf ein Element: **Steckbrief** — zeigt bei verschmolzenen Elementen, in welchen Architekturen sie vorkommen, mit **Sprung-Button**
-- **Beziehungen**: Verbindungen über die Dateigrenze sind mit **„Modellgrenze"** markiert
+- Klick auf ein Element: **Steckbrief** (zeigt bei verschmolzenen Elementen, wo sie überall vorkommen)
+- Verbindungen über die Dateigrenze sind mit **„Modellgrenze"** markiert
 
-### 5 · Ändern & Speichern
-- ✏️ klicken → Feld ändern → speichern (Änderungen werden nur **vorgemerkt**)
-- **„✏️ Bearbeiten"** zeigt die Änderungsliste (einzeln entfernbar)
+### 4 · Ändern & Speichern
+- ✏️ klicken → Feld ändern (wird **vorgemerkt**)
 - **„💾 Als neue .qea speichern"** → neue Datei im Download-Ordner
 
 **Wichtig:**
 - Das **Original wird nie überschrieben**
-- Bei mehreren Dateien bekommt **jede Quelldatei** ihre eigene neue Datei
-- Ergebnis einmal in **Sparx EA** öffnen und prüfen
-- Am besten immer mit einer **Kopie** arbeiten
+- Bei mehreren Dateien bekommt **jede Quelle** ihre eigene neue Datei
+- Ergebnis einmal in **Sparx EA** öffnen und prüfen; mit einer **Kopie** arbeiten
 
 ---
 
 ## Häufige Fragen
 
 **Was bedeutet „verschmelzen"?**
-Elemente, die nach den gewählten Kriterien als gleich erkannt werden, teilen sich einen Knoten. Dadurch sieht man Verbindungen, die über die Architekturgrenze hinweggehen.
+Elemente, die nach den Kriterien als gleich erkannt werden, teilen sich einen Knoten — so werden Verbindungen über die Architekturgrenze sichtbar.
 
-**Was, wenn ich nichts zusammenführen will?**
-Alles abwählen oder das Kontrollkästchen „Semantik einbeziehen" aus. Die Dateien werden dann nur nebeneinander gestellt.
+**Nichts zusammenführen?**
+Alle Kriterien abwählen oder „Semantik einbeziehen" aus. Die Dateien werden dann nur nebeneinander gestellt.
 
-**Kann ich eine Zusammenführung zurücknehmen?**
-Ja — im Prüf-Dialog einzelne Häkchen entfernen. Nach dem Bestätigen: Button **„✕ Auflösen"** in der Leiste.
+**Zusammenführung zurücknehmen?**
+Im Prüf-Dialog Häkchen entfernen; nach dem Bestätigen: Button **„✕ Auflösen"**.
 
-**Warum sehe ich IDs wie `m2_o145`?**
-Modell 1 behält die Original-IDs. Ab Modell 2 bekommen Elemente einen Präfix (`m2_` = zweite Datei), damit nichts verwechselt wird.
+**Was bedeuten IDs wie `m2_o145`?**
+Modell 1 behält Original-IDs, ab Modell 2 kommt ein Präfix (`m2_` = zweite Datei) zur Unterscheidung.
 
 **Wo wird gespeichert?**
 In eine **neue** Datei, z. B. `Modell_bearbeitet_20261016-1620.qea`. Das Original bleibt unverändert.
 
 ---
 
-*Mehr Details: [README.md](README.md) · Fragen & Probleme: Issue im Repository*
+*Mehr Details: [README.md](README.md) · Fragen: Issue im Repository*
