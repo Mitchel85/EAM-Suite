@@ -2808,7 +2808,13 @@ function buildModel() {
     };
   }
 
-  /* Baum verknüpfen */
+  /* Baum verknüpfen — children/roots werden bei JEDEM Aufruf frisch aufgebaut.
+     Im Mehrfach-Modus wächst die Landkarte (PKG/OBJS akkumulieren), aber der
+     Baum darf nicht doppelt verknüpft werden (alte children/roots sonst verwaist). */
+  for (var kk in PKG) {
+    if (PKG.hasOwnProperty(kk)) PKG[kk].children = [];
+  }
+  PKG_ROOTS.length = 0;
   for (var k in PKG) {
     if (!PKG.hasOwnProperty(k)) continue;
     var pk = PKG[k];
