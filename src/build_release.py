@@ -82,6 +82,14 @@ target_html = os.path.join(DIST, NAME + ".html")
 with open(target_html, "w", encoding="utf-8") as f:
     f.write(full_html)
 
+# 1b. index.html für GitHub Pages (Weiterleitung auf die App)
+with open(os.path.join(DIST, "index.html"), "w", encoding="utf-8") as f:
+    f.write('<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
+            '<meta http-equiv="refresh" content="0; url=' + NAME + '.html">'
+            '<title>EAM Suite</title></head><body>'
+            '<p>Weiterleitung … <a href="' + NAME + '.html">EAM Suite öffnen</a></p>'
+            '</body></html>')
+
 # 2. ASPX bauen: Inhalt identisch, beginnt DIREKT mit <!DOCTYPE html>, UTF-8 mit BOM
 assert full_html.startswith('<!DOCTYPE html>')
 assert full_html.lstrip('\ufeff').startswith('<!DOCTYPE html>'), "ASPY muss mit <!DOCTYPE html> beginnen!"
