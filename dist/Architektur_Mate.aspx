@@ -112,7 +112,7 @@
   .search-clear { position:absolute; right:10px; background:none; border:none; font-size:16px; color:var(--bw-mid); cursor:pointer; display:none; }
   .search-scopes { display:inline-flex; background:#F1F5F9; border:1px solid var(--border); border-radius:8px; padding:3px; gap:3px; align-items:center; }
   .scope-btn { border:none; background:transparent; color:var(--ink); padding:6px 11px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; }
-  .scope-btn.on { background:var(--bw-blue); color:#fff; }
+  .scope-btn.on { background:#E3EDF5; color:var(--bw-blue); box-shadow:inset 0 0 0 1.5px var(--bw-blue); }
 
   #gsres { display:none; position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:90; background:#fff; border:1px solid var(--bw-blue); border-radius:10px; max-height:460px; overflow:auto; box-shadow:0 12px 32px rgba(0,40,80,.22); }
   .gs-hdr { background:#F1F5F9; padding:7px 12px; font-size:11.5px; font-weight:700; color:var(--bw-blue); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:2; }
@@ -164,7 +164,8 @@
   .exp-main { min-width:0; background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px; }
 
   /* Ordner- & Sichten-Karten */
-  .subpkg-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; margin:8px 0 16px; }
+  .subpkg-grid { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 16px; }
+  .subpkg-grid .pkg-card { flex:0 0 220px; }
   .pkg-card { background:#F8FAFC; border:1px solid var(--border); border-left:4px solid var(--bw-blue); border-radius:8px; padding:9px 12px; cursor:pointer; transition:.12s; }
   .pkg-card:hover { background:#EAF2F8; border-color:var(--bw-blue); transform:translateY(-1px); }
   .pkg-card-title { font-weight:700; color:var(--bw-blue); font-size:13px; margin-bottom:4px; display:flex; align-items:center; gap:6px; }
@@ -248,6 +249,7 @@
   /* Aktionsleiste & Export-Buttons */
   .vp-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin:10px 0 12px; background:#F8FAFC; border:1px solid var(--border); border-radius:8px; padding:8px 12px; }
   .vswitch, .vexport { display:inline-flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:12.5px; color:var(--bw-mid); }
+  .vexport button { padding:5px 9px; font-size:12px; }
   .vp-actions button { background:#fff; border:1px solid #C6D2DA; color:var(--bw-blue); border-radius:6px; padding:6px 11px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; transition:.12s; }
   .vp-actions button:hover { border-color:var(--bw-blue); background:#EAF1F6; }
   .vp-actions button.on { background:var(--bw-blue); color:#fff; border-color:var(--bw-blue); }
@@ -455,13 +457,50 @@
   @media print {
     #editdrawer, #editmodal, #edittoast, .vedit { display:none !important; }
   }
+  /* ---------- Dunkelmodus (folgt der Systemeinstellung) ---------- */
+  @media (prefers-color-scheme: dark) {
+    :root { --bw-blue:#5AA7DE; --bw-dark:#0A1E33; --bw-mid:#8CA3B5; --bw-light:#2E485E; --amber:#E8A23D; --amber-bg:#3B2F1B; --green:#57C2A2; --green-bg:#14332B; --ink:#DCE4EC; --bg:#0D1622; --card:#16222F; --border:#33465A; }
+    .drop, .upbtn.one, .semwrap, .semwrap-details, .helpbox, #modellbar, .btn-sm, .gs-btn, .mtab, .exp-tree-panel, .exp-main, .dcard, .diagbox, .dchip, td.cell, table.data, .rulecol, .vp-actions button, .gpanel, .gbtns button, .gpanel button, .emodal, .modalbox { background:var(--card); color:var(--ink); }
+    .drop:hover, .drop.over, .upbtn.one:hover, .btn-sm:hover, .gs-btn:hover, .mtab:hover, .pkg-card:hover, .dcard:hover, .vp-actions button:hover, .gbtns button:hover, .gpanel button:hover { background:#1E3044; }
+    .search-input-wrap input { background:#14202E; color:var(--ink); }
+    .search-input-wrap input:focus { background:#16222F; }
+    .tree-filter, .vpfilter, .emodal input, .emodal textarea, .emodal select { background:#14202E; color:var(--ink); }
+    .mmode { background:var(--card); color:var(--bw-mid); }
+    .vedit button { background:#3A2A16; border-color:#7A5A2A; color:#F0C078; }
+    .vedit button:hover { background:#4A3a1e; }
+    .vedit button.delbtn { background:#3A1B1B; border-color:#7A3A3A; color:#F2A0A0; }
+    .search-scopes, .gs-hdr, .semnote, .trow:hover, .gpill, .kpis span, .purpose, .vp-actions, .pkg-card, .dist-bar, .svgwrap, td.cell.nodata { background:#1A2736; color:var(--ink); }
+    .semnote.warn, #warnbar { background:#3A2B15; border-color:#6B4E1E; color:#F2D08A; }
+    .modelband { background:#182536; }
+    .vp-actions button.exp-png { background:#3A2E14; color:#F2C66D; border-color:#8A6A25; }
+    .vp-actions button.exp-xls { background:#14302A; color:#6FD6B0; border-color:#2E7A5F; }
+    .mtab:hover { background:#1E3044; }
+    .gsrow:hover, table.data tr:hover td { background:#1B2C3F; }
+    table.grid th.rowhead { background:#22364B; }
+    tr.bridge th.rowhead { background:#3A3219; color:#D9C072; }
+    tr.xmodel { background:#33290F; }
+    tr.xmodel:hover { background:#3E3318; }
+    code, table.data code { background:#22364B; color:#9CC8EF; }
+    .tbadge { background:#2A3A4D; color:#A8B9C8; }
+    .tbadge.diag, .gs-kind.k-diag, .b-diag { background:#3A2E14; color:#F2C66D; }
+    .gs-kind.k-pkg { background:#1C3452; color:#8FB8E8; }
+    .gs-kind.k-el { background:#2A3A4D; color:#C3D0DC; }
+    .gchip { background:#22364B; color:#9CC8EF; border-color:#3D5A78; }
+    .mchip-m1 { background:#22364B; }
+    .mchip-m2 { background:#3A2E14; color:#F2C66D; border-color:#6B4E1E; }
+    .mchip-m3 { background:#14332B; color:#6FD6B0; border-color:#2E7A5F; }
+    .up-hint, .mb-note, footer { color:var(--bw-mid); }
+    .semopt b, .semopt em, .exp-tag { color:var(--ink); }
+    .semopt:hover, .msvrow:hover { background:#1E3044; }
+    header { background:linear-gradient(135deg, #0A1E33 0%, #123A5C 100%); }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 Architektur Mate <span class="badge-v">v8.3 · 100 % lokal</span></h1>
+      <h1>🤝 Architektur Mate <span class="badge-v">v8.4 · 100 % lokal</span></h1>
       <p>Erkunden · analysieren · bearbeiten — ohne KI, ohne Installation.</p>
     </div>
   </div>
@@ -549,15 +588,7 @@
       <button class="mtab" id="tab-grid" onclick="showView('grid')">📐 Referenz-Grid <span class="cnt" id="cnt-grid">52</span></button>
     </div>
 
-    <details class="helpbox">
-      <summary>ℹ️ Kurzanleitung — So erkunden, analysieren und exportieren Sie jede Architektur</summary>
-      <ol>
-        <li><b>Direkt suchen (oben):</b> Begriff eingeben (z. B. Prozess, System, Projekt) → sofort Treffer in <b>🖼️ Sichten</b>, <b>📁 Paketen</b> und <b>📦 Elementen</b>.</li>
-        <li><b>Durch Pakete &amp; Sichten klicken:</b> Im Reiter <b>„🧭 Erkunden“</b> links durch den echten Ordnerbaum navigieren — rechts erscheinen Unterordner, alle vorhandenen Sichten (Diagramme) und Elemente, auch ohne ADMBw-Namensschema.</li>
-        <li><b>Analysieren:</b> Jede Sicht im Reiter <b>„🕸️ Graph“</b> als Netzwerk erkunden (Knotenzahl per Schieberegler oder Zahleneingabe). Im Reiter <b>„🔗 Verbindungen“</b> nachweisen, wie zwei Elemente zusammenhängen (Pfadanalyse mit Diagnose).</li>
-        <li><b>Exportieren:</b> Jede Sicht, jedes Paket und jeden Pfad mit einem Klick als <b>📸 PNG</b> oder <b>📊 Excel (.xlsx)</b> sichern — die Buttons stehen direkt an der jeweiligen Ansicht.</li>
-      </ol>
-    </details>
+    <details class="helpbox" id="quickbar"></details>
 
     <!-- ANSICHT 1: PAKET- & STRUKTUR-EXPLORER (Standard) -->
     <div id="view-explorer" style="display:none">
@@ -611,7 +642,7 @@
   </div>
 </main>
 <footer>
-  <b>Architektur Mate v8.3</b> · Ihr Architekturgehilfe · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
+  <b>Architektur Mate v8.4</b> · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
@@ -1344,7 +1375,7 @@ function norm(s) { return decodeEntities(String(s == null ? '' : s)).replace(/\s
 function fmt(n) { return String(n || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 function diagN(n) { return (Number(n) === 1) ? '1 Sicht' : fmt(n) + ' Sichten'; }
 function elN(n) { return (Number(n) === 1) ? '1 Element' : fmt(n) + ' Elemente'; }
-function pkgN(n) { return (Number(n) === 1) ? '1 Unterordner' : fmt(n) + ' Unterordner'; }
+function pkgN(n) { return (Number(n) === 1) ? '1 Unterpaket' : fmt(n) + ' Unterpakete'; }
 function relN(n) { return (Number(n) === 1) ? '1 Beziehung' : fmt(n) + ' Beziehungen'; }
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function dateStamp() {
@@ -3159,7 +3190,13 @@ function renderQuickBar() {
     h.push('</div>');
   }
 
-  qb.innerHTML = '<details style="cursor:pointer"><summary style="font-weight:700;color:var(--bw-blue);font-size:12px">⚡ Schnell-Einstieg (Einstiegs-Sichten, Hauptpakete &amp; häufigste Elementtypen) ein-/ausblenden</summary><div style="margin-top:7px;display:flex;flex-direction:column;gap:6px">' + h.join('') + '</div></details>';
+  qb.innerHTML = '<summary>ℹ️ Hilfe &amp; Schnell-Einstieg — Einstiegs-Sichten, Hauptpakete, häufigste Elementtypen &amp; Kurzanleitung</summary><div style="margin-top:7px;display:flex;flex-direction:column;gap:6px">' + h.join('') +
+    '<ol>' +
+    '<li><b>Direkt suchen (oben):</b> Begriff eingeben → sofort Treffer in <b>🖼️ Sichten</b>, <b>📁 Paketen</b> und <b>📦 Elementen</b>.</li>' +
+    '<li><b>Durch Pakete &amp; Sichten klicken:</b> Im Reiter <b>„🧭 Erkunden“</b> links durch den Ordnerbaum navigieren — rechts erscheinen Unterpakete, Sichten (Diagramme) und Elemente.</li>' +
+    '<li><b>Analysieren:</b> Sichten im Reiter <b>„🕸️ Graph“</b> als Netzwerk erkunden; im Reiter <b>„🔗 Verbindungen“</b> nachweisen, wie zwei Elemente zusammenhängen (Pfadanalyse).</li>' +
+    '<li><b>Exportieren:</b> Jede Sicht, jedes Paket und jeden Pfad mit einem Klick als <b>📸 PNG</b> oder <b>📊 Excel (.xlsx)</b> sichern — die Buttons stehen direkt an der jeweiligen Ansicht.</li>' +
+    '</ol></div>';
 }
 
 /* ================================================================
@@ -3320,8 +3357,8 @@ function openPackage(pid, stayInExplorer) {
     '<button onclick="EDIT.elNew(' + pid + ')" title="Neues Element in diesem Paket anlegen">＋ Element</button>' +
     '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Dieses Paket inkl. Elementen, Beziehungen &amp; Tagged Values als Excel (.xlsx) exportieren">📊 Paket als Excel (.xlsx)</button>' +
-    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph als PNG exportieren">📸 Als PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Dieses Paket inkl. Elementen, Beziehungen &amp; Tagged Values als Excel (.xlsx) exportieren">📊 Excel (.xlsx)</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph als PNG exportieren">📸 PNG</button>' +
     '<button onclick="exportElementsCSV()">⤓ CSV</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +
     '</span>');
@@ -3331,7 +3368,7 @@ function openPackage(pid, stayInExplorer) {
 
   /* 1. Unterpakete als Ordner-Kacheln */
   if (pkg.children.length) {
-    h.push('<h3>Unterpakete / Ordner (' + pkg.children.length + ')</h3>');
+    h.push('<h3>Unterpakete (' + pkg.children.length + ')</h3>');
     h.push('<div class="subpkg-grid">');
     for (i = 0; i < pkg.children.length; i++) {
       var ch = pkg.children[i];
@@ -3582,8 +3619,8 @@ function openDiagramView(diagId, mode) {
     '<button onclick="EDIT.diagEdit(' + diag.id + ')" title="Sicht-/Diagrammnamen &amp; Beschreibung ändern">Sicht bearbeiten</button>' +
     '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-png" onclick="exportCurrentPNG()" title="Diese Sicht (Schaubild oder Graph) als hochauflösendes PNG exportieren">📸 Sicht als PNG exportieren</button>' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Alle Elemente, Beziehungen &amp; Tagged Values dieser Sicht als Excel (.xlsx) exportieren">📊 Sicht als Excel (.xlsx) exportieren</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()" title="Diese Sicht (Schaubild oder Graph) als hochauflösendes PNG exportieren">📸 PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Alle Elemente, Beziehungen &amp; Tagged Values dieser Sicht als Excel (.xlsx) exportieren">📊 Excel (.xlsx)</button>' +
     '<button onclick="exportElementsCSV()">⤓ Elemente (CSV)</button>' +
     '<button onclick="exportRelsCSV()">⤓ Beziehungen (CSV)</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +
@@ -3780,8 +3817,8 @@ function openVP(id) {
   h.push('<div class="vp-actions">');
   h.push('<span class="vswitch">Ansicht: <button id="btn-mode-list" class="on" onclick="setVPMode(\'list\')">☰ Diagramme &amp; Tabellen</button><button id="btn-mode-graph" onclick="setVPMode(\'graph\')">◉ Zusammenhänge (Graph)</button></span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph dieser Sicht als PNG exportieren">📸 Als PNG exportieren</button>' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Elemente &amp; Beziehungen dieser Sicht als Excel (.xlsx) exportieren">📊 Als Excel (.xlsx) exportieren</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph dieser Sicht als PNG exportieren">📸 PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Elemente &amp; Beziehungen dieser Sicht als Excel (.xlsx) exportieren">📊 Excel (.xlsx)</button>' +
     '<button onclick="exportElementsCSV()">⤓ Elemente (CSV)</button>' +
     '<button onclick="exportRelsCSV()">⤓ Beziehungen (CSV)</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button></span>');
@@ -3957,7 +3994,7 @@ function globalSearch() {
 
   var h = [], i;
   h.push('<div class="gs-hdr">' +
-    '<span>Treffer für „' + esc(q) + '“: ' + res.diags.length + ' Sichten · ' + res.pkgs.length + ' Pakete · ' + res.els.length + ' Elemente</span>' +
+    '<span>Treffer für „' + esc(q) + '“: ' + diagN(res.diags.length) + ' · ' + (res.pkgs.length === 1 ? '1 Paket' : fmt(res.pkgs.length) + ' Pakete') + ' · ' + elN(res.els.length) + '</span>' +
     '<button class="gs-btn" onclick="openSearchResultsView()">🔎 Alle als Sicht öffnen &amp; exportieren</button>' +
   '</div>');
 
@@ -4049,8 +4086,8 @@ function openSearchResultsView() {
     '<button id="btn-mode-graph" onclick="setVPMode(\'graph\')">◉ Gefundene Elemente im Graph visualisieren</button>' +
   '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Treffer als Excel (.xlsx) exportieren</button>' +
-    '<button class="exp-png" onclick="exportCurrentPNG()">📸 Graph als PNG exportieren</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Excel (.xlsx)</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()">📸 PNG</button>' +
     '<button onclick="exportElementsCSV()">⤓ CSV</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +
   '</span>');
@@ -4207,8 +4244,8 @@ function openElement(oid, mode, focusModel) {
       '<button class="delbtn" onclick="EDIT.elDel(\'' + oid + '\')">🗑 Löschen</button>';
   h.push('<span class="vedit">✏️ ' + veditBtns + '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Umfeld als Excel (.xlsx)</button>' +
-    '<button class="exp-png" onclick="exportCurrentPNG()">📸 Graph als PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Excel (.xlsx)</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()">📸 PNG</button>' +
     '<button onclick="exportElementsCSV()">⤓ Elemente (CSV)</button>' +
     '<button onclick="exportRelsCSV()">⤓ Beziehungen (CSV)</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +

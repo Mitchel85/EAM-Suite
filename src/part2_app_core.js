@@ -54,7 +54,7 @@ function norm(s) { return decodeEntities(String(s == null ? '' : s)).replace(/\s
 function fmt(n) { return String(n || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 function diagN(n) { return (Number(n) === 1) ? '1 Sicht' : fmt(n) + ' Sichten'; }
 function elN(n) { return (Number(n) === 1) ? '1 Element' : fmt(n) + ' Elemente'; }
-function pkgN(n) { return (Number(n) === 1) ? '1 Unterordner' : fmt(n) + ' Unterordner'; }
+function pkgN(n) { return (Number(n) === 1) ? '1 Unterpaket' : fmt(n) + ' Unterpakete'; }
 function relN(n) { return (Number(n) === 1) ? '1 Beziehung' : fmt(n) + ' Beziehungen'; }
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function dateStamp() {
@@ -1869,7 +1869,13 @@ function renderQuickBar() {
     h.push('</div>');
   }
 
-  qb.innerHTML = '<details style="cursor:pointer"><summary style="font-weight:700;color:var(--bw-blue);font-size:12px">⚡ Schnell-Einstieg (Einstiegs-Sichten, Hauptpakete &amp; häufigste Elementtypen) ein-/ausblenden</summary><div style="margin-top:7px;display:flex;flex-direction:column;gap:6px">' + h.join('') + '</div></details>';
+  qb.innerHTML = '<summary>ℹ️ Hilfe &amp; Schnell-Einstieg — Einstiegs-Sichten, Hauptpakete, häufigste Elementtypen &amp; Kurzanleitung</summary><div style="margin-top:7px;display:flex;flex-direction:column;gap:6px">' + h.join('') +
+    '<ol>' +
+    '<li><b>Direkt suchen (oben):</b> Begriff eingeben → sofort Treffer in <b>🖼️ Sichten</b>, <b>📁 Paketen</b> und <b>📦 Elementen</b>.</li>' +
+    '<li><b>Durch Pakete &amp; Sichten klicken:</b> Im Reiter <b>„🧭 Erkunden“</b> links durch den Ordnerbaum navigieren — rechts erscheinen Unterpakete, Sichten (Diagramme) und Elemente.</li>' +
+    '<li><b>Analysieren:</b> Sichten im Reiter <b>„🕸️ Graph“</b> als Netzwerk erkunden; im Reiter <b>„🔗 Verbindungen“</b> nachweisen, wie zwei Elemente zusammenhängen (Pfadanalyse).</li>' +
+    '<li><b>Exportieren:</b> Jede Sicht, jedes Paket und jeden Pfad mit einem Klick als <b>📸 PNG</b> oder <b>📊 Excel (.xlsx)</b> sichern — die Buttons stehen direkt an der jeweiligen Ansicht.</li>' +
+    '</ol></div>';
 }
 
 /* ================================================================
@@ -2030,8 +2036,8 @@ function openPackage(pid, stayInExplorer) {
     '<button onclick="EDIT.elNew(' + pid + ')" title="Neues Element in diesem Paket anlegen">＋ Element</button>' +
     '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Dieses Paket inkl. Elementen, Beziehungen &amp; Tagged Values als Excel (.xlsx) exportieren">📊 Paket als Excel (.xlsx)</button>' +
-    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph als PNG exportieren">📸 Als PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Dieses Paket inkl. Elementen, Beziehungen &amp; Tagged Values als Excel (.xlsx) exportieren">📊 Excel (.xlsx)</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph als PNG exportieren">📸 PNG</button>' +
     '<button onclick="exportElementsCSV()">⤓ CSV</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +
     '</span>');
@@ -2041,7 +2047,7 @@ function openPackage(pid, stayInExplorer) {
 
   /* 1. Unterpakete als Ordner-Kacheln */
   if (pkg.children.length) {
-    h.push('<h3>Unterpakete / Ordner (' + pkg.children.length + ')</h3>');
+    h.push('<h3>Unterpakete (' + pkg.children.length + ')</h3>');
     h.push('<div class="subpkg-grid">');
     for (i = 0; i < pkg.children.length; i++) {
       var ch = pkg.children[i];
@@ -2292,8 +2298,8 @@ function openDiagramView(diagId, mode) {
     '<button onclick="EDIT.diagEdit(' + diag.id + ')" title="Sicht-/Diagrammnamen &amp; Beschreibung ändern">Sicht bearbeiten</button>' +
     '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-png" onclick="exportCurrentPNG()" title="Diese Sicht (Schaubild oder Graph) als hochauflösendes PNG exportieren">📸 Sicht als PNG exportieren</button>' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Alle Elemente, Beziehungen &amp; Tagged Values dieser Sicht als Excel (.xlsx) exportieren">📊 Sicht als Excel (.xlsx) exportieren</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()" title="Diese Sicht (Schaubild oder Graph) als hochauflösendes PNG exportieren">📸 PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Alle Elemente, Beziehungen &amp; Tagged Values dieser Sicht als Excel (.xlsx) exportieren">📊 Excel (.xlsx)</button>' +
     '<button onclick="exportElementsCSV()">⤓ Elemente (CSV)</button>' +
     '<button onclick="exportRelsCSV()">⤓ Beziehungen (CSV)</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +

@@ -34,6 +34,7 @@ Ab **v6.0**: **mehrere Architekturen gleichzeitig laden** und zu einer Landkarte
 | **Prinzip** | Alle Änderungen landen in einer **Änderungsliste** (Alt→Neu, einzeln entfernbar), geschrieben wird erst beim Speichern |
 | **Multi-Modus** | Beliebig viele `.qea`-Dateien zu einer Landkarte; Kennungen bleiben klar (`m2_o145` ab Modell 2); „✕ Auflösen" nimmt die Fusion zurück |
 | **Analyse** | Vollständiger [ADMBw QEA Analyzer](https://github.com/Mitchel85/admbw-qea-analyzer) enthalten: Explorer, Sofort-Suche, interaktiver Graph (ADMBw/NAFv4-Farben), Pfadanalyse, 1-Klick-Export je Sicht als PNG oder Excel |
+| **Komfort** | Dunkelmodus (automatisch nach Systemeinstellung), Sofort-Suche, Tausender-Formatierung, kurze Export-Schaltflächen mit Tooltips |
 
 ![Element-Editor](docs/img/vorschau_edit_editor.png)
 ![Änderungsliste](docs/img/vorschau_edit_aenderungen.png)

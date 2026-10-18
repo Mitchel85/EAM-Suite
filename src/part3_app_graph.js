@@ -111,8 +111,8 @@ function openVP(id) {
   h.push('<div class="vp-actions">');
   h.push('<span class="vswitch">Ansicht: <button id="btn-mode-list" class="on" onclick="setVPMode(\'list\')">☰ Diagramme &amp; Tabellen</button><button id="btn-mode-graph" onclick="setVPMode(\'graph\')">◉ Zusammenhänge (Graph)</button></span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph dieser Sicht als PNG exportieren">📸 Als PNG exportieren</button>' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Elemente &amp; Beziehungen dieser Sicht als Excel (.xlsx) exportieren">📊 Als Excel (.xlsx) exportieren</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()" title="Schaubild oder Graph dieser Sicht als PNG exportieren">📸 PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()" title="Elemente &amp; Beziehungen dieser Sicht als Excel (.xlsx) exportieren">📊 Excel (.xlsx)</button>' +
     '<button onclick="exportElementsCSV()">⤓ Elemente (CSV)</button>' +
     '<button onclick="exportRelsCSV()">⤓ Beziehungen (CSV)</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button></span>');
@@ -288,7 +288,7 @@ function globalSearch() {
 
   var h = [], i;
   h.push('<div class="gs-hdr">' +
-    '<span>Treffer für „' + esc(q) + '“: ' + res.diags.length + ' Sichten · ' + res.pkgs.length + ' Pakete · ' + res.els.length + ' Elemente</span>' +
+    '<span>Treffer für „' + esc(q) + '“: ' + diagN(res.diags.length) + ' · ' + (res.pkgs.length === 1 ? '1 Paket' : fmt(res.pkgs.length) + ' Pakete') + ' · ' + elN(res.els.length) + '</span>' +
     '<button class="gs-btn" onclick="openSearchResultsView()">🔎 Alle als Sicht öffnen &amp; exportieren</button>' +
   '</div>');
 
@@ -380,8 +380,8 @@ function openSearchResultsView() {
     '<button id="btn-mode-graph" onclick="setVPMode(\'graph\')">◉ Gefundene Elemente im Graph visualisieren</button>' +
   '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Treffer als Excel (.xlsx) exportieren</button>' +
-    '<button class="exp-png" onclick="exportCurrentPNG()">📸 Graph als PNG exportieren</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Excel (.xlsx)</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()">📸 PNG</button>' +
     '<button onclick="exportElementsCSV()">⤓ CSV</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +
   '</span>');
@@ -538,8 +538,8 @@ function openElement(oid, mode, focusModel) {
       '<button class="delbtn" onclick="EDIT.elDel(\'' + oid + '\')">🗑 Löschen</button>';
   h.push('<span class="vedit">✏️ ' + veditBtns + '</span>');
   h.push('<span class="vexport">' +
-    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Umfeld als Excel (.xlsx)</button>' +
-    '<button class="exp-png" onclick="exportCurrentPNG()">📸 Graph als PNG</button>' +
+    '<button class="exp-xls" onclick="exportCurrentXLSX()">📊 Excel (.xlsx)</button>' +
+    '<button class="exp-png" onclick="exportCurrentPNG()">📸 PNG</button>' +
     '<button onclick="exportElementsCSV()">⤓ Elemente (CSV)</button>' +
     '<button onclick="exportRelsCSV()">⤓ Beziehungen (CSV)</button>' +
     '<button onclick="exportPDF()">🖨 PDF</button>' +
