@@ -1091,6 +1091,7 @@ function loadQea(buffer, name) {
     G.built = false;
     resetModelData();
     MODEL_DBS = {}; MODEL_DBS[1] = DB;
+    MODEL_DB = DB; MODEL_OBJS = OBJS; MODEL_PKG = PKG; MODEL_DIAGS = DIAGS; MODEL_TAGS = TAGS;
     buildModel();
     if (!Object.keys(OBJS).length && !DIAGS.length && !Object.keys(PKG).length) {
       alert('In der Datei wurde keine Sparx-EA-Struktur gefunden (Kern-Tabelle t_object fehlt oder ist leer).');
