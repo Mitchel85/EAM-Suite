@@ -86,7 +86,7 @@ Musterarchitektur **MASC** (12,4 MB) und **Zweitarchitektur** — u. a. Multi-Mo
 
 **Automatisierte End-to-End-Tests:** Bei jedem Push läuft eine Playwright-Suite (echter Chromium, headless) in [GitHub Actions](https://github.com/Mitchel85/EAM-Suite/actions) — Startbereich, Laden, Suche, Paket-Ansicht, Edit-Änderungsliste, Mehrfach-Modus (Regressionsschutz gegen doppelte Baum-Roots) und Dunkelmodus. Lokal: `pytest tests/test_app.py` (siehe `requirements-dev.txt`).
 
-Testmodell: [eam-qea-tool](https://github.com/Mitchel85/EAM-AI-QEA-Analyzer) → `Demo-Output/Musterarchitektur_MASC.qea`
+Testmodell: [EAM-AI-QEA-Analyzer](https://github.com/Mitchel85/EAM-AI-QEA-Analyzer) → `Demo-Output/Musterarchitektur_MASC.qea`
 
 ---
 
@@ -98,10 +98,10 @@ Als **Testversion** veröffentlicht. Interessant sind besonders Modelle mit Fehl
 
 | Repository | Zweck |
 |---|---|
-| [admbw-qea-analyzer](https://github.com/Mitchel85/EAM-QEA-Analyzer) | Analyse-Version (nur lesen) |
-| [eam-qea-tool](https://github.com/Mitchel85/EAM-AI-QEA-Analyzer) | Natürlichsprachliche Abfragen |
-| [admbw-extractor](https://github.com/Mitchel85/EAM-AI-ADMBw-Extractor) | ADMBw-Viewpoints aus Prosa |
-| [sparx-ea-scripts](https://github.com/Mitchel85/EAM-AI-ADMBw-Script-Maker) | JS-Automatisierung in Sparx EA |
+| [EAM-QEA-Analyzer](https://github.com/Mitchel85/EAM-QEA-Analyzer) | Analyse-Version (nur lesen) |
+| [EAM-AI-QEA-Analyzer](https://github.com/Mitchel85/EAM-AI-QEA-Analyzer) | Natürlichsprachliche Abfragen |
+| [EAM-AI-ADMBw-Extractor](https://github.com/Mitchel85/EAM-AI-ADMBw-Extractor) | ADMBw-Viewpoints aus Prosa |
+| [EAM-AI-ADMBw-Script-Maker](https://github.com/Mitchel85/EAM-AI-ADMBw-Script-Maker) | JS-Automatisierung in Sparx EA |
 
 ---
 
