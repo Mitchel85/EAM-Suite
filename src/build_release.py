@@ -25,6 +25,7 @@ SRC = os.path.join(REPO, "src")
 DIST = os.path.join(REPO, "dist")
 VEND = os.path.join(REPO, "vendor")
 NAME = "Architektur_Mate"
+DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs")
 
 
 def rd(*parts):
@@ -82,7 +83,15 @@ target_html = os.path.join(DIST, NAME + ".html")
 with open(target_html, "w", encoding="utf-8") as f:
     f.write(full_html)
 
-# 1b. index.html für GitHub Pages (Weiterleitung auf die App)
+# 1b. GitHub-Pages-Spiegel in docs/ (index.html + App-Datei; Pages liefert /docs aus)
+with open(os.path.join(DOCS, "index.html"), "w", encoding="utf-8") as f:
+    f.write('<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
+            '<meta http-equiv="refresh" content="0; url=' + NAME + '.html">'
+            '<title>EAM Suite</title></head><body>'
+            '<p>Weiterleitung … <a href="' + NAME + '.html">EAM Suite öffnen</a></p>'
+            '</body></html>')
+with open(os.path.join(DOCS, NAME + ".html"), "w", encoding="utf-8") as f:
+    f.write(full_html)
 with open(os.path.join(DIST, "index.html"), "w", encoding="utf-8") as f:
     f.write('<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">'
             '<meta http-equiv="refresh" content="0; url=' + NAME + '.html">'
