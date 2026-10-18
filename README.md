@@ -1,5 +1,7 @@
 # Architektur Mate
 
+[![CI](https://github.com/Mitchel85/architektur-mate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/architektur-mate/actions/workflows/ci.yml)
+
 **Sparx-EA-Architekturen im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
 
 Einzeldatei-Tool (HTML & ASPX) für Architekturmodelle im SQLite-Format (`.qea` / `.eapx` / `.qeax`): Elemente, Pakete, Sichten, Beziehungen und Tagged Values **ändern**, **anlegen** und **entfernen**. Geschrieben wird stets in eine **neue `.qea`-Datei** — das Original bleibt unangetastet.
@@ -78,7 +80,9 @@ Die `.qea`-Datei ist eine SQLite-Datenbank. Zum Schreiben startet eine **echte S
 
 ## Getestet mit
 
-Musterarchitektur **MASC** (12,4 MB) und **Testarchitektur** — u. a. Multi-Modus (2 Dateien → 374 Pakete, 56 Beziehungen über die Modellgrenze), Kriterien (GUID 206 · Name 293 Treffer), Pfadanalyse (Einzel + Cross-Model, 19/19 grün), Edit & Speichern je Quelldatei, automatisierte End-zu-End-Tests **19/19 grün**.
+Musterarchitektur **MASC** (12,4 MB) und **Zweitarchitektur** — u. a. Multi-Modus (2 Dateien), Kriterien (GUID 206 · Name 293 Treffer), Pfadanalyse (Einzel + Cross-Model, 19/19 grün), Edit & Speichern je Quelldatei.
+
+**Automatisierte End-to-End-Tests:** Bei jedem Push läuft eine Playwright-Suite (echter Chromium, headless) in [GitHub Actions](https://github.com/Mitchel85/architektur-mate/actions) — Startbereich, Laden, Suche, Paket-Ansicht, Edit-Änderungsliste, Mehrfach-Modus (Regressionsschutz gegen doppelte Baum-Roots) und Dunkelmodus. Lokal: `pytest tests/test_app.py` (siehe `requirements-dev.txt`).
 
 Testmodell: [eam-qea-tool](https://github.com/Mitchel85/eam-qea-tool) → `Demo-Output/Musterarchitektur_MASC.qea`
 

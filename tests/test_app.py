@@ -1,0 +1,187 @@
+"""End-to-End-Tests für Architektur Mate.
+
+Playwright steuert einen echten Chromium-Browser (headless) und testet die
+gebaute Einzeldatei dist/Architektur_Mate.html gegen die mitgelieferten
+Testarchitekturen in tests/fixtures/.
+
+Lokal ausführen:
+    python3 src/build_release.py
+    pip install -r requirements-dev.txt
+    python -m playwright install chromium
+    pytest tests/test_app.py -v
+
+Die Tests laufen automatisch bei jedem Push (siehe .github/workflows/ci.yml).
+"""
+import pathlib
+import re
+
+import pytest
+from playwright.sync_api import sync_playwright
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+DIST = ROOT / "dist" / "Architektur_Mate.html"
+FIX = ROOT / "tests" / "fixtures"
+MASC = FIX / "Musterarchitektur_MASC.qea"
+ZWEIT = FIX / "Zweitarchitektur.qea"
+URL = DIST.as_uri()
+
+# Bekannte Kennzahlen der Musterarchitektur (MASC)
+PKG_COUNT = "226 Pakete"
+DIAG_COUNT = "265 Sichten"
+EL_COUNT = "1.655 Elemente"
+ROOT_EL_COUNT = "1.646 Elemente"  # Paket-Root inkl. Unterpakete
+
+
+def _load(page, files):
+    page.locator("#file").set_input_files([str(f) for f in files])
+
+
+def _loaded(page, timeout=45000):
+    page.wait_for_function(
+        "() => typeof PKG !== 'undefined' && Object.keys(PKG).length > 0",
+        timeout=timeout,
+    )
+
+
+@pytest.fixture(scope="session")
+def browser():
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        yield b
+        b.close()
+
+
+@pytest.fixture()
+def page(browser):
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(URL)
+    pg.wait_for_timeout(600)
+    yield pg
+    assert errors == [], f"JS-Fehler aufgetreten: {errors}"
+    ctx.close()
+
+
+# Bei Fehlschlag automatisch Screenshot ablegen (für CI-Artefakt)
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.when == "call" and rep.failed:
+        pg = item.funcargs.get("page")
+        if pg is not None:
+            d = ROOT / "tests" / "_screenshots"
+            d.mkdir(exist_ok=True)
+            try:
+                pg.screenshot(path=str(d / f"{item.name}.png"))
+            except Exception:
+                pass
+
+
+def test_startbereich_aufgeraeumt(page):
+    """Startbereich: Upload sichtbar, 2 klare Buttons, Kriterien eingeklappt."""
+    assert page.locator("#upload").is_visible()
+    btns = page.locator(".upbtn")
+    assert btns.count() == 2
+    texts = [btns.nth(i).inner_text() for i in range(2)]
+    assert "Eine Architektur laden" in texts[0]
+    assert "verschmelzen" in texts[1]
+    details = page.locator(".semwrap-details")
+    assert details.count() == 1
+    assert details.get_attribute("open") is None  # standardmäßig zu
+    assert "v8" in page.locator(".badge-v").inner_text()
+
+
+def test_laden_einzelmodell(page):
+    """MASC lädt, Modellleiste zeigt korrekte Gesamtzahlen, Baum rendert."""
+    _load(page, [MASC])
+    _loaded(page)
+    bar = page.locator("#modellbar").inner_text()
+    assert PKG_COUNT in bar
+    assert DIAG_COUNT in bar
+    assert EL_COUNT in bar
+    # MASC enthält zwei Root-Pakete: MASC + TestArchitektur_Verbindungstest
+    names = page.evaluate("PKG_ROOTS.map(r => r.name).join('|')")
+    assert "MASC" in names and "TestArchitektur_Verbindungstest" in names
+    assert page.evaluate("PKG_ROOTS.length") == 2
+    assert "MASC" in page.locator("#pkgtree").inner_text()
+
+
+def test_suche_mit_treffer(page):
+    """Sofort-Suche: Treffer-Überschrift mit formatierten Zahlen."""
+    _load(page, [MASC])
+    _loaded(page)
+    page.fill("#globalsearch", "Projekt")
+    page.wait_for_selector("#gsres", state="visible", timeout=15000)
+    hdr = page.locator(".gs-hdr").inner_text()
+    assert "Treffer für" in hdr
+    assert re.search(r"[\d.]+ (Sicht|Sichten)", hdr)
+    assert "0 Sichten · 0 Pakete · 0 Elemente" not in hdr
+
+
+def test_paketansicht_formatierte_kennzahlen(page):
+    """Paket-Ansicht: Tausenderpunkte, Singular/Plural, 'Unterpakete'."""
+    _load(page, [MASC])
+    _loaded(page)
+    kpis = page.locator(".kpis").inner_text()
+    assert ROOT_EL_COUNT in kpis  # 1.646 statt 1646 (Format-Regression)
+    assert "Unterpakete" in kpis
+    assert "Unterpakete (" in page.locator(".exp-main").inner_text()
+
+
+def test_edit_aenderung_vormerken(page):
+    """Edit: Modal öffnen, Namen ändern, vormerken → Änderungsliste (1)."""
+    _load(page, [MASC])
+    _loaded(page)
+    oid = page.evaluate(
+        "() => Object.keys(OBJS).find(k => OBJS[k].st && !/^proxyconnector$/i.test(OBJS[k].st))"
+    )
+    page.evaluate("oid => EDIT.elEdit(oid)", oid)
+    name = page.locator("#ee-name")
+    name.wait_for(state="visible", timeout=10000)
+    name.fill(name.input_value() + " (Test)")
+    page.locator("#editmodal button", has_text="vormerken").first.click()
+    page.evaluate("() => EDIT.openPanel()")
+    drawer = page.locator("#editdrawer")
+    drawer.wait_for(state="visible", timeout=10000)
+    head = page.locator(".edr-head").inner_text()
+    assert "(1)" in head
+    assert "→" in drawer.inner_text()
+
+
+def test_mehrfachmodus_keine_doppelten_roots(page):
+    """Regression: 2 Architekturen → keine doppelten Root-Pakete im Baum."""
+    _load(page, [MASC, ZWEIT])
+    page.wait_for_function(
+        "() => typeof MODEL_FILES !== 'undefined' && MODEL_FILES.length === 2",
+        timeout=45000,
+    )
+    _loaded(page)
+    page.wait_for_function("() => MULTI_MODE === true", timeout=15000)
+    roots = page.evaluate("PKG_ROOTS.map(r => r.id)")
+    assert len(roots) >= 2
+    assert len(set(roots)) == len(roots), f"Doppelte Roots: {roots}"
+    names = page.evaluate("PKG_ROOTS.map(r => r.name).join('|')")
+    assert "MASC" in names and "Zweitarchitektur" in names
+
+
+def test_dunkelmodus(browser):
+    """Dunkelmodus: dunkler Hintergrund bei Systemeinstellung 'dark'."""
+    ctx = browser.new_context(
+        viewport={"width": 1440, "height": 900}, color_scheme="dark"
+    )
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(URL)
+    pg.wait_for_timeout(800)
+    body_bg = pg.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert body_bg == "rgb(13, 22, 34)", f"Unerwarteter Hintergrund: {body_bg}"
+    card_bg = pg.evaluate(
+        "getComputedStyle(document.querySelector('.drop')).backgroundColor"
+    )
+    assert card_bg == "rgb(22, 34, 47)", f"Unerwartete Karte: {card_bg}"
+    assert errors == [], f"JS-Fehler im Dunkelmodus: {errors}"
+    ctx.close()

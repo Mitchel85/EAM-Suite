@@ -9,3 +9,7 @@ __pycache__/
 
 # Modelldaten gehören nicht ins Repo
 *.qea
+
+# CI-Tests: Fixtures sind erlaubt, Screenshots nicht
+!tests/fixtures/*.qea
+tests/_screenshots/
