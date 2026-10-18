@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/Mitchel85/EAM-Suite/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/EAM-Suite/actions/workflows/ci.yml)
 
+**▶️ Online ausprobieren (ohne Installation):** [mitchel85.github.io/EAM-Suite](https://mitchel85.github.io/EAM-Suite/) — lädt direkt im Browser, 100 % lokal.
+
 **Sparx-EA-Architekturen im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
 
 Einzeldatei-Tool (HTML & ASPX) für Architekturmodelle im SQLite-Format (`.qea` / `.eapx` / `.qeax`): Elemente, Pakete, Sichten, Beziehungen und Tagged Values **ändern**, **anlegen** und **entfernen**. Geschrieben wird stets in eine **neue `.qea`-Datei** — das Original bleibt unangetastet.
