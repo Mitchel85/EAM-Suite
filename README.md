@@ -1,6 +1,6 @@
 # Architektur Mate
 
-[![CI](https://github.com/Mitchel85/architektur-mate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/architektur-mate/actions/workflows/ci.yml)
+[![CI](https://github.com/Mitchel85/Architektur-Mate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/Architektur-Mate/actions/workflows/ci.yml)
 
 **Sparx-EA-Architekturen im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
 
@@ -82,7 +82,7 @@ Die `.qea`-Datei ist eine SQLite-Datenbank. Zum Schreiben startet eine **echte S
 
 Musterarchitektur **MASC** (12,4 MB) und **Zweitarchitektur** — u. a. Multi-Modus (2 Dateien), Kriterien (GUID 206 · Name 293 Treffer), Pfadanalyse (Einzel + Cross-Model, 19/19 grün), Edit & Speichern je Quelldatei.
 
-**Automatisierte End-to-End-Tests:** Bei jedem Push läuft eine Playwright-Suite (echter Chromium, headless) in [GitHub Actions](https://github.com/Mitchel85/architektur-mate/actions) — Startbereich, Laden, Suche, Paket-Ansicht, Edit-Änderungsliste, Mehrfach-Modus (Regressionsschutz gegen doppelte Baum-Roots) und Dunkelmodus. Lokal: `pytest tests/test_app.py` (siehe `requirements-dev.txt`).
+**Automatisierte End-to-End-Tests:** Bei jedem Push läuft eine Playwright-Suite (echter Chromium, headless) in [GitHub Actions](https://github.com/Mitchel85/Architektur-Mate/actions) — Startbereich, Laden, Suche, Paket-Ansicht, Edit-Änderungsliste, Mehrfach-Modus (Regressionsschutz gegen doppelte Baum-Roots) und Dunkelmodus. Lokal: `pytest tests/test_app.py` (siehe `requirements-dev.txt`).
 
 Testmodell: [eam-qea-tool](https://github.com/Mitchel85/eam-qea-tool) → `Demo-Output/Musterarchitektur_MASC.qea`
 
