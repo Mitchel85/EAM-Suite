@@ -311,7 +311,7 @@ function globalSearch() {
     var p = res.pkgs[i];
     h.push('<div class="gsrow">' +
       '<span class="gs-kind k-pkg">📁 Paket</span>' +
-      '<span class="gs-name" onclick="openPackage(' + p.id + ')"><b>' + esc(p.name) + '</b> <span class="gs-meta">' + esc(p.path) + ' (' + p.allDiagsCount + ' Sichten · ' + p.allObjsCount + ' El.)</span></span>' +
+      '<span class="gs-name" onclick="openPackage(' + p.id + ')"><b>' + esc(p.name) + '</b> <span class="gs-meta">' + esc(p.path) + ' (' + diagN(p.allDiagsCount) + ' · ' + elN(p.allObjsCount) + ')</span></span>' +
       '<button class="gs-btn" onclick="event.stopPropagation();openPackage(' + p.id + ')">🧭 Im Explorer</button>' +
     '</div>');
   }
@@ -410,7 +410,7 @@ function openSearchResultsView() {
     h.push('<div class="subpkg-grid">');
     for (i = 0; i < res.pkgs.length && i < 16; i++) {
       var p = res.pkgs[i];
-      h.push('<div class="pkg-card" onclick="openPackage(' + p.id + ')"><div class="pkg-card-title">📁 ' + esc(p.name) + '</div><div class="pkg-card-meta">' + esc(p.path) + '<br><b>' + p.allDiagsCount + '</b> Sichten · <b>' + p.allObjsCount + '</b> Elemente</div></div>');
+      h.push('<div class="pkg-card" onclick="openPackage(' + p.id + ')"><div class="pkg-card-title">📁 ' + esc(p.name) + '</div><div class="pkg-card-meta">' + esc(p.path) + '<br><b>' + diagN(p.allDiagsCount) + '</b> · <b>' + elN(p.allObjsCount) + '</b></div></div>');
     }
     h.push('</div>');
   }

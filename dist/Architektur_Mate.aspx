@@ -461,8 +461,8 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 Architektur Mate <span class="badge-v">v8.3 · Ihr Architekturgehilfe · Multi-Architektur</span></h1>
-      <p>QEA-Architekturen verstehen <b>und bearbeiten</b>: Pakete &amp; Sichten erkunden, im Graphen analysieren, Verbindungen nachweisen, Elemente/Pakete/Sichten/Beziehungen ändern und als neue .qea speichern — 100&nbsp;% lokal im Browser, ohne KI.</p>
+      <h1>🤝 Architektur Mate <span class="badge-v">v8.3 · 100 % lokal</span></h1>
+      <p>Erkunden · analysieren · bearbeiten — ohne KI, ohne Installation.</p>
     </div>
   </div>
 </header>
@@ -520,7 +520,7 @@
       <div class="mbsearch">
         <div class="search-hero">
           <div class="search-input-wrap">
-            <input id="globalsearch" placeholder="🔍 Architektur durchsuchen: Sichten/Diagramme, Pakete, Elemente, Alias, Stereotyp oder Beschreibung … (Enter = Vollansicht aller Treffer)" oninput="globalSearch()" onkeydown="globalSearchKey(event)">
+            <input id="globalsearch" placeholder="🔍 Sichten, Pakete &amp; Elemente durchsuchen … (Enter = alle Treffer)" oninput="globalSearch()" onkeydown="globalSearchKey(event)">
             <button id="gsclear" class="search-clear" onclick="clearGlobalSearch()" title="Suche zurücksetzen">✕</button>
           </div>
           <div class="search-scopes" id="searchscopes">
@@ -1342,6 +1342,10 @@ function cleanNote(s) {
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function norm(s) { return decodeEntities(String(s == null ? '' : s)).replace(/\s+/g, ' ').trim(); }
 function fmt(n) { return String(n || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function diagN(n) { return (Number(n) === 1) ? '1 Sicht' : fmt(n) + ' Sichten'; }
+function elN(n) { return (Number(n) === 1) ? '1 Element' : fmt(n) + ' Elemente'; }
+function pkgN(n) { return (Number(n) === 1) ? '1 Unterordner' : fmt(n) + ' Unterordner'; }
+function relN(n) { return (Number(n) === 1) ? '1 Beziehung' : fmt(n) + ' Beziehungen'; }
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function dateStamp() {
   var d = new Date();
@@ -3131,7 +3135,7 @@ function renderQuickBar() {
     h.push('<div class="qb-row"><span class="qb-lbl">📁 Hauptbereiche (Pakete):</span>');
     for (i = 0; i < topPkgs.length && i < 8; i++) {
       var p = topPkgs[i];
-      h.push('<span class="gchip" onclick="showView(\'explorer\');openPackage(' + p.id + ')" title="Paket im Explorer öffnen">' + esc(p.name) + ' <em>(' + p.allDiagsCount + ' Sichten · ' + p.allObjsCount + ' El.)</em></span>');
+      h.push('<span class="gchip" onclick="showView(\'explorer\');openPackage(' + p.id + ')" title="Paket im Explorer öffnen">' + esc(p.name) + ' <em>(' + diagN(p.allDiagsCount) + ' · ' + elN(p.allObjsCount) + ')</em></span>');
     }
     h.push('</div>');
   }
@@ -3192,8 +3196,8 @@ function renderPkgTree() {
       h.push('<span class="ttog">·</span>');
     }
     h.push('<span class="tname" title="' + esc(node.path) + '">📁 ' + esc(node.name) + '</span>');
-    if (node.allDiagsCount > 0) h.push('<span class="tbadge diag" title="Enthaltene Sichten / Diagramme">🖼️ ' + node.allDiagsCount + '</span>');
-    if (node.allObjsCount > 0) h.push('<span class="tbadge" title="Enthaltene Elemente">' + node.allObjsCount + '</span>');
+    if (node.allDiagsCount > 0) h.push('<span class="tbadge diag" title="Enthaltene Sichten / Diagramme">🖼️ ' + fmt(node.allDiagsCount) + '</span>');
+    if (node.allObjsCount > 0) h.push('<span class="tbadge" title="Enthaltene Elemente">' + fmt(node.allObjsCount) + '</span>');
     h.push('</div>');
     if (hasKids && isOpen) {
       h.push('<div class="tchildren">');
@@ -3290,12 +3294,11 @@ function openPackage(pid, stayInExplorer) {
   }
   h.push('</div>');
 
-  h.push('<h2>📁 ' + esc(pkg.name) + '</h2>');
   h.push('<div class="kpis">' +
-    '<span><b>' + pkg.children.length + '</b> Unterordner</span>' +
-    '<span><b>' + pdata.diags.length + '</b> vorhandene Sichten (Diagramme)</span>' +
-    '<span><b>' + pdata.els.length + '</b> Elemente</span>' +
-    '<span><b>' + pdata.rels.length + '</b> Beziehungen</span>' +
+    '<span><b>' + pkgN(pkg.children.length) + '</b></span>' +
+    '<span><b>' + diagN(pdata.diags.length) + '</b> (Diagramme)</span>' +
+    '<span><b>' + elN(pdata.els.length) + '</b></span>' +
+    '<span><b>' + relN(pdata.rels.length) + '</b></span>' +
     '</div>');
   if (pkg.notes) {
     if (pkg.notes.length > 180) {
@@ -3334,7 +3337,7 @@ function openPackage(pid, stayInExplorer) {
       var ch = pkg.children[i];
       h.push('<div class="pkg-card" onclick="openPackage(' + ch.id + ')">');
       h.push('<div class="pkg-card-title">📁 ' + esc(ch.name) + '</div>');
-      h.push('<div class="pkg-card-meta"><b>' + ch.allDiagsCount + '</b> Sichten &nbsp;·&nbsp; <b>' + ch.allObjsCount + '</b> Elemente' + (ch.children.length ? ' &nbsp;·&nbsp; ' + ch.children.length + ' Unterordner' : '') + '</div>');
+      h.push('<div class="pkg-card-meta"><b>' + diagN(ch.allDiagsCount) + '</b> &nbsp;·&nbsp; <b>' + elN(ch.allObjsCount) + '</b>' + (ch.children.length ? ' &nbsp;·&nbsp; ' + pkgN(ch.children.length) : '') + '</div>');
       h.push('</div>');
     }
     h.push('</div>');
@@ -3977,7 +3980,7 @@ function globalSearch() {
     var p = res.pkgs[i];
     h.push('<div class="gsrow">' +
       '<span class="gs-kind k-pkg">📁 Paket</span>' +
-      '<span class="gs-name" onclick="openPackage(' + p.id + ')"><b>' + esc(p.name) + '</b> <span class="gs-meta">' + esc(p.path) + ' (' + p.allDiagsCount + ' Sichten · ' + p.allObjsCount + ' El.)</span></span>' +
+      '<span class="gs-name" onclick="openPackage(' + p.id + ')"><b>' + esc(p.name) + '</b> <span class="gs-meta">' + esc(p.path) + ' (' + diagN(p.allDiagsCount) + ' · ' + elN(p.allObjsCount) + ')</span></span>' +
       '<button class="gs-btn" onclick="event.stopPropagation();openPackage(' + p.id + ')">🧭 Im Explorer</button>' +
     '</div>');
   }
@@ -4076,7 +4079,7 @@ function openSearchResultsView() {
     h.push('<div class="subpkg-grid">');
     for (i = 0; i < res.pkgs.length && i < 16; i++) {
       var p = res.pkgs[i];
-      h.push('<div class="pkg-card" onclick="openPackage(' + p.id + ')"><div class="pkg-card-title">📁 ' + esc(p.name) + '</div><div class="pkg-card-meta">' + esc(p.path) + '<br><b>' + p.allDiagsCount + '</b> Sichten · <b>' + p.allObjsCount + '</b> Elemente</div></div>');
+      h.push('<div class="pkg-card" onclick="openPackage(' + p.id + ')"><div class="pkg-card-title">📁 ' + esc(p.name) + '</div><div class="pkg-card-meta">' + esc(p.path) + '<br><b>' + diagN(p.allDiagsCount) + '</b> · <b>' + elN(p.allObjsCount) + '</b></div></div>');
     }
     h.push('</div>');
   }

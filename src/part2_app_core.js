@@ -52,6 +52,10 @@ function cleanNote(s) {
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function norm(s) { return decodeEntities(String(s == null ? '' : s)).replace(/\s+/g, ' ').trim(); }
 function fmt(n) { return String(n || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function diagN(n) { return (Number(n) === 1) ? '1 Sicht' : fmt(n) + ' Sichten'; }
+function elN(n) { return (Number(n) === 1) ? '1 Element' : fmt(n) + ' Elemente'; }
+function pkgN(n) { return (Number(n) === 1) ? '1 Unterordner' : fmt(n) + ' Unterordner'; }
+function relN(n) { return (Number(n) === 1) ? '1 Beziehung' : fmt(n) + ' Beziehungen'; }
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function dateStamp() {
   var d = new Date();
@@ -1841,7 +1845,7 @@ function renderQuickBar() {
     h.push('<div class="qb-row"><span class="qb-lbl">📁 Hauptbereiche (Pakete):</span>');
     for (i = 0; i < topPkgs.length && i < 8; i++) {
       var p = topPkgs[i];
-      h.push('<span class="gchip" onclick="showView(\'explorer\');openPackage(' + p.id + ')" title="Paket im Explorer öffnen">' + esc(p.name) + ' <em>(' + p.allDiagsCount + ' Sichten · ' + p.allObjsCount + ' El.)</em></span>');
+      h.push('<span class="gchip" onclick="showView(\'explorer\');openPackage(' + p.id + ')" title="Paket im Explorer öffnen">' + esc(p.name) + ' <em>(' + diagN(p.allDiagsCount) + ' · ' + elN(p.allObjsCount) + ')</em></span>');
     }
     h.push('</div>');
   }
@@ -1902,8 +1906,8 @@ function renderPkgTree() {
       h.push('<span class="ttog">·</span>');
     }
     h.push('<span class="tname" title="' + esc(node.path) + '">📁 ' + esc(node.name) + '</span>');
-    if (node.allDiagsCount > 0) h.push('<span class="tbadge diag" title="Enthaltene Sichten / Diagramme">🖼️ ' + node.allDiagsCount + '</span>');
-    if (node.allObjsCount > 0) h.push('<span class="tbadge" title="Enthaltene Elemente">' + node.allObjsCount + '</span>');
+    if (node.allDiagsCount > 0) h.push('<span class="tbadge diag" title="Enthaltene Sichten / Diagramme">🖼️ ' + fmt(node.allDiagsCount) + '</span>');
+    if (node.allObjsCount > 0) h.push('<span class="tbadge" title="Enthaltene Elemente">' + fmt(node.allObjsCount) + '</span>');
     h.push('</div>');
     if (hasKids && isOpen) {
       h.push('<div class="tchildren">');
@@ -2000,12 +2004,11 @@ function openPackage(pid, stayInExplorer) {
   }
   h.push('</div>');
 
-  h.push('<h2>📁 ' + esc(pkg.name) + '</h2>');
   h.push('<div class="kpis">' +
-    '<span><b>' + pkg.children.length + '</b> Unterordner</span>' +
-    '<span><b>' + pdata.diags.length + '</b> vorhandene Sichten (Diagramme)</span>' +
-    '<span><b>' + pdata.els.length + '</b> Elemente</span>' +
-    '<span><b>' + pdata.rels.length + '</b> Beziehungen</span>' +
+    '<span><b>' + pkgN(pkg.children.length) + '</b></span>' +
+    '<span><b>' + diagN(pdata.diags.length) + '</b> (Diagramme)</span>' +
+    '<span><b>' + elN(pdata.els.length) + '</b></span>' +
+    '<span><b>' + relN(pdata.rels.length) + '</b></span>' +
     '</div>');
   if (pkg.notes) {
     if (pkg.notes.length > 180) {
@@ -2044,7 +2047,7 @@ function openPackage(pid, stayInExplorer) {
       var ch = pkg.children[i];
       h.push('<div class="pkg-card" onclick="openPackage(' + ch.id + ')">');
       h.push('<div class="pkg-card-title">📁 ' + esc(ch.name) + '</div>');
-      h.push('<div class="pkg-card-meta"><b>' + ch.allDiagsCount + '</b> Sichten &nbsp;·&nbsp; <b>' + ch.allObjsCount + '</b> Elemente' + (ch.children.length ? ' &nbsp;·&nbsp; ' + ch.children.length + ' Unterordner' : '') + '</div>');
+      h.push('<div class="pkg-card-meta"><b>' + diagN(ch.allDiagsCount) + '</b> &nbsp;·&nbsp; <b>' + elN(ch.allObjsCount) + '</b>' + (ch.children.length ? ' &nbsp;·&nbsp; ' + pkgN(ch.children.length) : '') + '</div>');
       h.push('</div>');
     }
     h.push('</div>');
