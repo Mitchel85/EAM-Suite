@@ -1,6 +1,6 @@
 # Architektur Mate
 
-[![CI](https://github.com/Mitchel85/Architektur-Mate/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/Architektur-Mate/actions/workflows/ci.yml)
+[![CI](https://github.com/Mitchel85/EAM-Suite/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/EAM-Suite/actions/workflows/ci.yml)
 
 **Sparx-EA-Architekturen im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
 
@@ -35,7 +35,7 @@ Ab **v6.0**: **mehrere Architekturen gleichzeitig laden** und zu einer Landkarte
 | **Löschen** | Elemente (mit vollständiger Kaskade) und Beziehungen |
 | **Prinzip** | Alle Änderungen landen in einer **Änderungsliste** (Alt→Neu, einzeln entfernbar), geschrieben wird erst beim Speichern |
 | **Multi-Modus** | Beliebig viele `.qea`-Dateien zu einer Landkarte; Kennungen bleiben klar (`m2_o145` ab Modell 2); „✕ Auflösen" nimmt die Fusion zurück |
-| **Analyse** | Vollständiger [ADMBw QEA Analyzer](https://github.com/Mitchel85/admbw-qea-analyzer) enthalten: Explorer, Sofort-Suche, interaktiver Graph (ADMBw/NAFv4-Farben), Pfadanalyse, 1-Klick-Export je Sicht als PNG oder Excel |
+| **Analyse** | Vollständiger [ADMBw QEA Analyzer](https://github.com/Mitchel85/EAM-QEA-Analyzer) enthalten: Explorer, Sofort-Suche, interaktiver Graph (ADMBw/NAFv4-Farben), Pfadanalyse, 1-Klick-Export je Sicht als PNG oder Excel |
 | **Komfort** | Dunkelmodus (automatisch nach Systemeinstellung), Sofort-Suche, Tausender-Formatierung, kurze Export-Schaltflächen mit Tooltips |
 
 ![Element-Editor](docs/img/vorschau_edit_editor.png)
@@ -82,9 +82,9 @@ Die `.qea`-Datei ist eine SQLite-Datenbank. Zum Schreiben startet eine **echte S
 
 Musterarchitektur **MASC** (12,4 MB) und **Zweitarchitektur** — u. a. Multi-Modus (2 Dateien), Kriterien (GUID 206 · Name 293 Treffer), Pfadanalyse (Einzel + Cross-Model, 19/19 grün), Edit & Speichern je Quelldatei.
 
-**Automatisierte End-to-End-Tests:** Bei jedem Push läuft eine Playwright-Suite (echter Chromium, headless) in [GitHub Actions](https://github.com/Mitchel85/Architektur-Mate/actions) — Startbereich, Laden, Suche, Paket-Ansicht, Edit-Änderungsliste, Mehrfach-Modus (Regressionsschutz gegen doppelte Baum-Roots) und Dunkelmodus. Lokal: `pytest tests/test_app.py` (siehe `requirements-dev.txt`).
+**Automatisierte End-to-End-Tests:** Bei jedem Push läuft eine Playwright-Suite (echter Chromium, headless) in [GitHub Actions](https://github.com/Mitchel85/EAM-Suite/actions) — Startbereich, Laden, Suche, Paket-Ansicht, Edit-Änderungsliste, Mehrfach-Modus (Regressionsschutz gegen doppelte Baum-Roots) und Dunkelmodus. Lokal: `pytest tests/test_app.py` (siehe `requirements-dev.txt`).
 
-Testmodell: [eam-qea-tool](https://github.com/Mitchel85/eam-qea-tool) → `Demo-Output/Musterarchitektur_MASC.qea`
+Testmodell: [eam-qea-tool](https://github.com/Mitchel85/EAM-AI-QEA-Analyzer) → `Demo-Output/Musterarchitektur_MASC.qea`
 
 ---
 
@@ -96,10 +96,10 @@ Als **Testversion** veröffentlicht. Interessant sind besonders Modelle mit Fehl
 
 | Repository | Zweck |
 |---|---|
-| [admbw-qea-analyzer](https://github.com/Mitchel85/admbw-qea-analyzer) | Analyse-Version (nur lesen) |
-| [eam-qea-tool](https://github.com/Mitchel85/eam-qea-tool) | Natürlichsprachliche Abfragen |
-| [admbw-extractor](https://github.com/Mitchel85/admbw-extractor) | ADMBw-Viewpoints aus Prosa |
-| [sparx-ea-scripts](https://github.com/Mitchel85/sparx-ea-scripts) | JS-Automatisierung in Sparx EA |
+| [admbw-qea-analyzer](https://github.com/Mitchel85/EAM-QEA-Analyzer) | Analyse-Version (nur lesen) |
+| [eam-qea-tool](https://github.com/Mitchel85/EAM-AI-QEA-Analyzer) | Natürlichsprachliche Abfragen |
+| [admbw-extractor](https://github.com/Mitchel85/EAM-AI-ADMBw-Extractor) | ADMBw-Viewpoints aus Prosa |
+| [sparx-ea-scripts](https://github.com/Mitchel85/EAM-AI-ADMBw-Script-Maker) | JS-Automatisierung in Sparx EA |
 
 ---
 
