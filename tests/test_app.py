@@ -250,7 +250,7 @@ def test_mobile_390_kein_horizontaler_overflow(browser):
 
 
 def test_dunkelmodus(browser):
-    """Dunkelmodus: dunkler Hintergrund bei Systemeinstellung 'dark'."""
+    """Design: hell ist Standard (auch bei System-Dark), Dunkel nur per Button."""
     ctx = browser.new_context(
         viewport={"width": 1440, "height": 900}, color_scheme="dark"
     )
@@ -259,11 +259,31 @@ def test_dunkelmodus(browser):
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(URL)
     pg.wait_for_timeout(800)
+
+    # 1) Systemeinstellung 'dark' darf NICHT automatisch dunkel schalten
+    body_bg = pg.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert body_bg == "rgb(241, 245, 249)", f"Standard muss hell sein: {body_bg}"
+    assert pg.evaluate("document.documentElement.getAttribute('data-theme')") is None
+
+    # 2) Button oben rechts schaltet dunkel
+    btn = pg.locator("#themeBtn")
+    assert btn.count() == 1, "Genau ein Design-Umschalter erwartet"
+    assert btn.inner_text().strip() == "\U0001F319 Dunkles Design"
+    btn.click()
+    pg.wait_for_timeout(300)
+    assert pg.evaluate("document.documentElement.getAttribute('data-theme')") == "dark"
     body_bg = pg.evaluate("getComputedStyle(document.body).backgroundColor")
     assert body_bg == "rgb(13, 22, 34)", f"Unerwarteter Hintergrund: {body_bg}"
     card_bg = pg.evaluate(
         "getComputedStyle(document.querySelector('.drop')).backgroundColor"
     )
     assert card_bg == "rgb(22, 34, 47)", f"Unerwartete Karte: {card_bg}"
-    assert errors == [], f"JS-Fehler im Dunkelmodus: {errors}"
+    assert btn.inner_text().startswith("\u2600"), "Button muss zurück auf hell zeigen"
+
+    # 3) Zurückschalten -> wieder hell
+    btn.click()
+    pg.wait_for_timeout(300)
+    body_bg = pg.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert body_bg == "rgb(241, 245, 249)", f"Zurück auf hell erwartet: {body_bg}"
+    assert errors == [], f"JS-Fehler im Designwechsel: {errors}"
     ctx.close()
