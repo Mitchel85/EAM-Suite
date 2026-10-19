@@ -287,3 +287,38 @@ def test_dunkelmodus(browser):
     assert body_bg == "rgb(241, 245, 249)", f"Zurück auf hell erwartet: {body_bg}"
     assert errors == [], f"JS-Fehler im Designwechsel: {errors}"
     ctx.close()
+
+def test_helle_flaechen(browser):
+    """Helles Design: Dropzone, Suchfeld, Baumfilter und Sichten dürfen keine dunklen Flächen haben."""
+    ctx = browser.new_context(viewport={"width": 1440, "height": 1000})
+    pg = ctx.new_page()
+    pg.goto(URL)
+    pg.wait_for_timeout(600)
+
+    def avg(selector):
+        rgb = pg.evaluate(
+            "sel => { const el = document.querySelector(sel); if (!el) return null;"
+            " const c = getComputedStyle(el).backgroundColor.match(/[\\d.]+/g);"
+            " return c ? c.slice(0, 3).map(Number) : null; }", selector)
+        assert rgb is not None, f"Kein Hintergrund ermittelbar: {selector}"
+        return sum(rgb) / 3
+
+    assert avg(".drop") > 200, "Dropzone ist zu dunkel"
+    assert avg("#globalsearch") > 200, "Suchfeld ist zu dunkel"
+    assert avg("#treefilter") > 200, "Baumfilter ist zu dunkel"
+
+    # Nicht-Chrome-Flächen im geladenen Modell prüfen (Button-/Header-Blau ist gewollt)
+    pg.set_input_files("#file", "./Testarchitektur.qea")
+    pg.wait_for_timeout(4000)
+    pg.locator("button:has-text('Sicht öffnen')").first.click()
+    pg.wait_for_timeout(2500)
+    dunkel = pg.evaluate(
+        "() => { const out = [];"
+        "document.querySelectorAll('.svgwrap, .diagbox, .exp-tree-panel, .dcard, table.data, "
+        ".tree-filter, .search-input-wrap input, .dtree, .dbar').forEach(el => {"
+        " const c = getComputedStyle(el).backgroundColor.match(/[\\d.]+/g);"
+        " if (c && c.length >= 3 && c.slice(0,3).map(Number).reduce((a,b)=>a+b,0)/3 < 110) "
+        " out.push((el.className||el.tagName) + ': ' + getComputedStyle(el).backgroundColor); });"
+        "return out; }")
+    assert dunkel == [], f"Dunkle Flächen im hellen Design: {dunkel}"
+    ctx.close()
