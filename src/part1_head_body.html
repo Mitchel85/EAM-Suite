@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Architektur Mate — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
+<title>EAM Suite — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
 <style>
   :root {
     --bw-blue:#004471; --bw-dark:#0A2E4D; --bw-mid:#5A7184; --bw-light:#C6D6DE;
@@ -491,7 +491,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 Architektur Mate <span class="badge-v">v8.4 · 100 % lokal</span></h1>
+      <h1>🤝 EAM Suite <span class="badge-v">v8.4 · 100 % lokal</span></h1>
       <p>Erkunden · analysieren · bearbeiten — ohne KI, ohne Installation.</p>
     </div>
   
@@ -635,7 +635,7 @@
   </div>
 </main>
 <footer>
-  <b>Architektur Mate v8.4</b> · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
+  <b>EAM Suite v8.4</b> · 100 % Offline-Auswertung &amp; Bearbeitung im Browser (keine Datenübertragung)
 </footer>
 <div id="editdrawer" hidden></div>
 <div id="editmodal" class="emodal" hidden></div>
