@@ -2122,6 +2122,9 @@ function semMeta(k) {
   out.name = String(o.name || '');
   out.alias = semNormC(o.alias || '');
   out.note = semNormC(o.note || '');
+  /* Primär die echte EA-Identität (t_object.ea_guid), erst danach Tagged Values.
+     AAroN-Referenz: EAObject.EA_GUID / ObjectProcessor (eaGuid). */
+  if (o.guid) out.ids.push(semNormC(o.guid));
   var t = TAGS[k] || [];
   for (var i = 0; i < t.length; i++) {
     var p = semNormC(t[i].p), v = String(t[i].v == null ? '' : t[i].v).trim();
@@ -2895,6 +2898,7 @@ function buildModel() {
     var oItem = {
       id: oidV,
       localId: oidRaw,
+      guid: norm(qcol(r, 'ea_guid')),
       name: norm(qcol(r, 'Name')),
       st: norm(qcol(r, 'Stereotype')),
       alias: norm(qcol(r, 'Alias')),
@@ -7112,13 +7116,19 @@ var EDIT = (function () {
     return out;
   }
 
-  /* Stereotype-Eintrag in t_xref nachführen (EA: '@STEREO;Name=…;FQName=…;') */
+  /* Stereotype-Eintrag in t_xref nachführen (EA: '@STEREO;Name=…;FQName=…;')
+     AAroN-Referenz (schmitze87/AAroN, EAXref/XRefProcessor): t_xref.Client =
+     ea_guid des Elements/Connectors, Type = 'element property' bzw.
+     'connector property', Description = '@STEREO;Name=…;FQName=…;@ENDSTEREO;'.
+     Beim Anlegen fehlte der Eintrag bisher komplett — jetzt wird er ergänzt. */
   function stereoXrefSync(db, guid, type, newSt) {
     if (!guid) return;
     var rows = execRows(db, 'SELECT XrefID, Description FROM t_xref WHERE Client=? AND Type=?', [guid, type]);
+    var found = false;
     for (var i = 0; i < rows.length; i++) {
       var desc = s0(rows[i].Description);
       if (desc.indexOf('@STEREO;') !== 0) continue;
+      found = true;
       if (!newSt) { db.run('DELETE FROM t_xref WHERE XrefID=?', [rows[i].XrefID]); continue; }
       var newDesc, m = /FQName=([^;]*);/.exec(desc);
       if (m && m[1]) {
@@ -7128,6 +7138,16 @@ var EDIT = (function () {
         newDesc = '@STEREO;Name=' + newSt + ';@ENDSTEREO;';
       }
       db.run('UPDATE t_xref SET Description=? WHERE XrefID=?', [newDesc, rows[i].XrefID]);
+    }
+    if (!found && newSt) {
+      var fqName = '';
+      var tpl = execRows(db, 'SELECT Description FROM t_xref WHERE Description LIKE ? LIMIT 1', ['@STEREO;Name=' + newSt + ';%']);
+      if (tpl.length) {
+        var tm = /FQName=([^;]*);/.exec(s0(tpl[0].Description));
+        if (tm && tm[1]) fqName = tm[1];
+      }
+      var insDesc = '@STEREO;Name=' + newSt + ';' + (fqName ? 'FQName=' + fqName + ';' : '') + '@ENDSTEREO;';
+      db.run('INSERT INTO t_xref (XrefID, Type, Description, Client) VALUES (?,?,?,?)', [newGuid(), type, insDesc, guid]);
     }
   }
 
@@ -7243,6 +7263,7 @@ var EDIT = (function () {
       var ic = [], ph = [], iv = [];
       for (var k1 in row) if (has(row, k1)) { ic.push(k1); ph.push('?'); iv.push(row[k1] === undefined ? null : row[k1]); }
       db.run('INSERT INTO t_object (' + ic.join(',') + ') VALUES (' + ph.join(',') + ')', iv);
+      stereoXrefSync(db, row.ea_guid, 'element property', ch.stereotype);
       return;
     }
     if (ch.kind === 'conn.create') {
@@ -7267,6 +7288,7 @@ var EDIT = (function () {
       var ic2 = [], ph2 = [], iv2 = [];
       for (var k2 in crow) if (has(crow, k2)) { ic2.push(k2); ph2.push('?'); iv2.push(crow[k2] === undefined ? null : crow[k2]); }
       db.run('INSERT INTO t_connector (' + ic2.join(',') + ') VALUES (' + ph2.join(',') + ')', iv2);
+      stereoXrefSync(db, crow.ea_guid, 'connector property', ch.stereotype);
       return;
     }
     if (ch.kind === 'el.del') {

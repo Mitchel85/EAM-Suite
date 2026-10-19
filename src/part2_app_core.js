@@ -801,6 +801,9 @@ function semMeta(k) {
   out.name = String(o.name || '');
   out.alias = semNormC(o.alias || '');
   out.note = semNormC(o.note || '');
+  /* Primär die echte EA-Identität (t_object.ea_guid), erst danach Tagged Values.
+     AAroN-Referenz: EAObject.EA_GUID / ObjectProcessor (eaGuid). */
+  if (o.guid) out.ids.push(semNormC(o.guid));
   var t = TAGS[k] || [];
   for (var i = 0; i < t.length; i++) {
     var p = semNormC(t[i].p), v = String(t[i].v == null ? '' : t[i].v).trim();
@@ -1574,6 +1577,7 @@ function buildModel() {
     var oItem = {
       id: oidV,
       localId: oidRaw,
+      guid: norm(qcol(r, 'ea_guid')),
       name: norm(qcol(r, 'Name')),
       st: norm(qcol(r, 'Stereotype')),
       alias: norm(qcol(r, 'Alias')),
