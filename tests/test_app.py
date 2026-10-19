@@ -308,7 +308,7 @@ def test_helle_flaechen(browser):
     assert avg("#treefilter") > 200, "Baumfilter ist zu dunkel"
 
     # Nicht-Chrome-Flächen im geladenen Modell prüfen (Button-/Header-Blau ist gewollt)
-    pg.set_input_files("#file", "./Testarchitektur.qea")
+    pg.set_input_files("#file", str(ZWEIT))
     pg.wait_for_timeout(4000)
     pg.locator("button:has-text('Sicht öffnen')").first.click()
     pg.wait_for_timeout(2500)
