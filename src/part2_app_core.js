@@ -2446,3 +2446,34 @@ function zoomDiagSvg(diagId, factor, reset) {
   svg.setAttribute('width', String(Math.round(curW)));
   svg.setAttribute('height', String(Math.round(curH)));
 }
+
+/* ---------- Designumschaltung: Standard hell, Dunkel nur per Button ---------- */
+/* Designumschaltung: Standard hell, Wahl wird gespeichert (kein System-Dark mehr) */
+(function () {
+  try {
+    if (localStorage.getItem('eam-theme') === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  } catch (e) {}
+  function sync() {
+    var b = document.getElementById('themeBtn');
+    if (!b) return;
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    b.textContent = dark ? '\u2600\uFE0F Helles Design' : '\u{1F319} Dunkles Design';
+    b.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    b.title = dark ? 'Zur hellen Ansicht wechseln' : 'Zur dunklen Ansicht wechseln';
+  }
+  window.toggleTheme = function () {
+    var root = document.documentElement;
+    if (root.getAttribute('data-theme') === 'dark') {
+      root.removeAttribute('data-theme');
+      try { localStorage.setItem('eam-theme', 'light'); } catch (e) {}
+    } else {
+      root.setAttribute('data-theme', 'dark');
+      try { localStorage.setItem('eam-theme', 'dark'); } catch (e) {}
+    }
+    sync();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync);
+  else sync();
+})();

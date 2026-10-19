@@ -466,8 +466,17 @@
     #editdrawer, #editmodal, #edittoast, .vedit { display:none !important; }
   }
   /* ---------- Dunkelmodus (folgt der Systemeinstellung) ---------- */
-  @media (prefers-color-scheme: dark) {
-    :root { --bw-blue:#5AA7DE; --bw-dark:#0A1E33; --bw-mid:#8CA3B5; --bw-light:#2E485E; --amber:#E8A23D; --amber-bg:#3B2F1B; --green:#57C2A2; --green-bg:#14332B; --ink:#DCE4EC; --bg:#0D1622; --card:#16222F; --border:#33465A; }
+
+  /* ---------- Designumschaltung: Standard = hell, Dunkel nur per Button ---------- */
+  .theme-btn {
+    font:inherit; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:7px;
+    padding:8px 14px; border-radius:8px;
+    background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.45);
+  }
+  .theme-btn:hover { background:rgba(255,255,255,.26); }
+  .theme-btn:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+  :root[data-theme="dark"] { --bw-blue:#5AA7DE; --bw-dark:#0A1E33; --bw-mid:#8CA3B5; --bw-light:#2E485E; --amber:#E8A23D; --amber-bg:#3B2F1B; --green:#57C2A2; --green-bg:#14332B; --ink:#DCE4EC; --bg:#0D1622; --card:#16222F; --border:#33465A; }
     .drop, .upbtn.one, .semwrap, .semwrap-details, .helpbox, #modellbar, .btn-sm, .gs-btn, .mtab, .exp-tree-panel, .exp-main, .dcard, .diagbox, .dchip, td.cell, table.data, .rulecol, .vp-actions button, .gpanel, .gbtns button, .gpanel button, .emodal, .modalbox { background:var(--card); color:var(--ink); }
     .drop:hover, .drop.over, .upbtn.one:hover, .btn-sm:hover, .gs-btn:hover, .mtab:hover, .pkg-card:hover, .dcard:hover, .vp-actions button:hover, .gbtns button:hover, .gpanel button:hover { background:#1E3044; }
     .search-input-wrap input { background:#14202E; color:var(--ink); }
@@ -502,6 +511,7 @@
     .semopt:hover, .msvrow:hover { background:#1E3044; }
     header { background:linear-gradient(135deg, #0A1E33 0%, #123A5C 100%); }
   }
+
 </style>
 </head>
 <body>
@@ -511,8 +521,11 @@
       <h1>🤝 Architektur Mate <span class="badge-v">v8.4 · 100 % lokal</span></h1>
       <p>Erkunden · analysieren · bearbeiten — ohne KI, ohne Installation.</p>
     </div>
+  
+    
+    <button type="button" class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-pressed="false" title="Zur dunklen Ansicht wechseln">🌙 Dunkles Design</button>
   </div>
-</header>
+  </header>
 <main>
   <div id="printmeta"></div>
   <div id="upload">
@@ -3775,6 +3788,37 @@ function zoomDiagSvg(diagId, factor, reset) {
   svg.setAttribute('width', String(Math.round(curW)));
   svg.setAttribute('height', String(Math.round(curH)));
 }
+
+/* ---------- Designumschaltung: Standard hell, Dunkel nur per Button ---------- */
+/* Designumschaltung: Standard hell, Wahl wird gespeichert (kein System-Dark mehr) */
+(function () {
+  try {
+    if (localStorage.getItem('eam-theme') === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  } catch (e) {}
+  function sync() {
+    var b = document.getElementById('themeBtn');
+    if (!b) return;
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    b.textContent = dark ? '\u2600\uFE0F Helles Design' : '\u{1F319} Dunkles Design';
+    b.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    b.title = dark ? 'Zur hellen Ansicht wechseln' : 'Zur dunklen Ansicht wechseln';
+  }
+  window.toggleTheme = function () {
+    var root = document.documentElement;
+    if (root.getAttribute('data-theme') === 'dark') {
+      root.removeAttribute('data-theme');
+      try { localStorage.setItem('eam-theme', 'light'); } catch (e) {}
+    } else {
+      root.setAttribute('data-theme', 'dark');
+      try { localStorage.setItem('eam-theme', 'dark'); } catch (e) {}
+    }
+    sync();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync);
+  else sync();
+})();
 
 /* ADMBw QEA Analyzer v4.0 — Teil 2: Globale Suche, Viewpoints, Steckbrief, Interaktives Diagramm & Prägnanter Graph */
 
