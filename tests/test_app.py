@@ -322,3 +322,38 @@ def test_helle_flaechen(browser):
         "return out; }")
     assert dunkel == [], f"Dunkle Flächen im hellen Design: {dunkel}"
     ctx.close()
+
+def test_erweitert_oeffnet_keinen_explorer(browser):
+    """"Erweitert"-Bereich und Kriterien dürfen den Startbildschirm nicht verlassen."""
+    ctx = browser.new_context(viewport={"width": 1440, "height": 1000})
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(URL)
+    pg.wait_for_timeout(600)
+
+    def zustand():
+        return pg.evaluate(
+            "() => ({exp: !!document.querySelector('.exp-tree-panel')?.offsetParent,"
+            " ws: !!document.getElementById('workspace')?.offsetParent,"
+            " up: !!document.getElementById('upload')?.offsetParent})")
+
+    pg.locator(".semwrap-details summary").click()
+    pg.wait_for_timeout(300)
+    assert zustand() == {"exp": False, "ws": False, "up": True}, "Erweitert öffnet die Arbeitsansicht"
+
+    # Kriterien bleiben nach dem Öffnen bedienbar (nicht ausgegraut)
+    assert pg.locator("#semmatch-guid").is_enabled()
+    assert pg.locator("#semmatch-name").is_enabled()
+    assert pg.locator("#semmatch-alias").is_enabled()
+
+    pg.locator("#semmatch-guid").click()
+    pg.wait_for_timeout(300)
+    assert zustand()["exp"] is False, "Kriterienwechsel öffnet den Explorer"
+    assert pg.locator("#semmatch-guid").is_enabled(), "GUID-Kästchen wurde gesperrt"
+
+    pg.locator("#semmatch-guid").click()
+    pg.wait_for_timeout(200)
+    assert pg.locator("#semmatch-guid").is_checked()
+    assert errors == [], f"JS-Fehler: {errors}"
+    ctx.close()

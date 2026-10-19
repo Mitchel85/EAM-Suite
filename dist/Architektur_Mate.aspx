@@ -47,7 +47,9 @@
   .semtoggle { display:inline-flex; align-items:center; gap:5px; font-weight:600; font-size:12px; color:var(--bw-mid); cursor:pointer; }
   .semtoggle input { margin:0; cursor:pointer; }
   .semopts { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:4px 14px; margin-top:9px; }
-  .semwrap.off .semopts { opacity:.35; pointer-events:none; }
+  .semopts .semopt:nth-child(n+2) { margin-left: 20px; }
+  .semwrap.off .semopts .semopt:nth-child(n+2) { opacity:.35; pointer-events:none; }
+  .semnote .ok { color:#1E6F5C; font-weight:700; }
   .semopt { display:flex; gap:7px; align-items:flex-start; font-size:12px; padding:4px 6px; border-radius:6px; cursor:pointer; }
   .semopt:hover { background:#F2F7FA; }
   .semopt input { margin:2px 0 0; cursor:pointer; }
@@ -515,12 +517,11 @@
         <summary>⚙️ Erweitert: Kriterien für die Zusammenführung</summary>
         <div class="semwrap">
           <div class="semopts" id="semopts">
-            <label class="semopt"><input type="checkbox" id="semchk" checked onchange="setSemMode(this.checked)"> <span><b>Semantik einbeziehen</b> <em>Elemente werden als gleichartig erkannt</em></span></label>
-            <label class="semopt"><input type="checkbox" id="semmatch-guid" checked onchange="setMatchPrinciple('guid', this.checked)"> <span><b>Über GUID</b> <em>zusammenlegen über die eindeutige Identität (URI/UUID) — empfohlen</em></span></label>
-            <label class="semopt experimental"><input type="checkbox" id="semmatch-name" onchange="setMatchPrinciple('name', this.checked)"> <span><b>Über den Namen</b> <em>zusammenlegen über die Bezeichnung</em> <span class="exp-tag">experimentell</span></span></label>
-            <label class="semopt experimental"><input type="checkbox" id="semmatch-alias" onchange="setMatchPrinciple('alias', this.checked)"> <span><b>Über den Alias</b> <em>Alternativnamen mit einbeziehen</em> <span class="exp-tag">experimentell</span></span></label>
+            <label class="semopt"><input type="checkbox" id="semmatch-guid" checked onchange="setMatchPrinciple('guid', this.checked)"> <span><b>Über GUID</b> <em>eindeutige Identität (URI/UUID) — Standard</em></span></label>
+            <label class="semopt experimental"><input type="checkbox" id="semmatch-name" onchange="setMatchPrinciple('name', this.checked)"> <span><b>Über den Namen</b> <em>gleiche Bezeichnung</em> <span class="exp-tag">experimentell</span></span></label>
+            <label class="semopt experimental"><input type="checkbox" id="semmatch-alias" onchange="setMatchPrinciple('alias', this.checked)"> <span><b>Über den Alias</b> <em>Alternativnamen einbeziehen</em> <span class="exp-tag">experimentell</span></span></label>
           </div>
-          <div class="semnote warn" id="semnote">⚠ <b>Empfohlen:</b> nur „Über GUID“ aktiv. Weitere Kriterien („Namen“, „Alias“) sind <b>experimentell</b> und können instabil sein. Aktiv: <b>Über GUID</b>.</div>
+          <div class="semnote" id="semnote">Standard: <b>Über GUID</b>. Elemente werden nur zusammengelegt, wenn sie dieselbe eindeutige Identität besitzen.</div>
         </div>
       </details>
 
@@ -5579,8 +5580,11 @@ function showView(v, activeTabOverride) {
 /* ---------- Zusammenführungs-Kriterien: Bedienung ---------- */
 function setSemMode(on) {
   SEM_MODE = !!on;
+  /* Kriterien-Kästen nur optisch sperren, NICHT im Startbildschirm öffnen */
   var w = document.querySelector('.semwrap');
   if (w) w.className = SEM_MODE ? 'semwrap' : 'semwrap off';
+  var chk = el('semchk');
+  if (chk) chk.checked = SEM_MODE;
   updateSemNote();
   if (MULTI_MODE && MODEL_FILES.length > 1) rebuildMergeCands();
 }
@@ -5602,19 +5606,14 @@ function setMatchPrinciple(which, on) {
 function updateSemNote() {
   var n = el('semnote');
   if (!n) return;
-  if (!SEM_MODE) {
-    n.className = 'semnote';
-    n.innerHTML = 'Die Architekturen werden nur <b>gegenübergestellt</b>: keine Elemente werden zusammengelegt, auch nicht bei identischem Namen. Verbindungen über die Architekturgrenze bleiben dadurch unsichtbar.';
-    return;
-  }
   var P = MATCH_PRINCIPLE;
   var aktiv = [];
   if (P.guid) aktiv.push('GUID');
   if (P.name) aktiv.push('Name');
   if (P.alias) aktiv.push('Alias');
   if (!aktiv.length) {
-    n.className = 'semnote';
-    n.innerHTML = 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+    n.className = 'semnote warn';
+    n.innerHTML = '⚠ Kein Kriterium aktiv — es wird nichts zusammengelegt.';
     return;
   }
   /* Warnung: GUID ist empfohlen, alle anderen gelten als experimentell */

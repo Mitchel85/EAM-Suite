@@ -1786,8 +1786,11 @@ function showView(v, activeTabOverride) {
 /* ---------- Zusammenführungs-Kriterien: Bedienung ---------- */
 function setSemMode(on) {
   SEM_MODE = !!on;
+  /* Kriterien-Kästen nur optisch sperren, NICHT im Startbildschirm öffnen */
   var w = document.querySelector('.semwrap');
   if (w) w.className = SEM_MODE ? 'semwrap' : 'semwrap off';
+  var chk = el('semchk');
+  if (chk) chk.checked = SEM_MODE;
   updateSemNote();
   if (MULTI_MODE && MODEL_FILES.length > 1) rebuildMergeCands();
 }
@@ -1809,19 +1812,14 @@ function setMatchPrinciple(which, on) {
 function updateSemNote() {
   var n = el('semnote');
   if (!n) return;
-  if (!SEM_MODE) {
-    n.className = 'semnote';
-    n.innerHTML = 'Die Architekturen werden nur <b>gegenübergestellt</b>: keine Elemente werden zusammengelegt, auch nicht bei identischem Namen. Verbindungen über die Architekturgrenze bleiben dadurch unsichtbar.';
-    return;
-  }
   var P = MATCH_PRINCIPLE;
   var aktiv = [];
   if (P.guid) aktiv.push('GUID');
   if (P.name) aktiv.push('Name');
   if (P.alias) aktiv.push('Alias');
   if (!aktiv.length) {
-    n.className = 'semnote';
-    n.innerHTML = 'Kein Kriterium aktiv — es wird nichts zusammengelegt.';
+    n.className = 'semnote warn';
+    n.innerHTML = '⚠ Kein Kriterium aktiv — es wird nichts zusammengelegt.';
     return;
   }
   /* Warnung: GUID ist empfohlen, alle anderen gelten als experimentell */
