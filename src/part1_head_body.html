@@ -145,7 +145,15 @@
   /* Explorer Layout (Paketbaum links + Paket-/Sicht-Inhalt rechts) */
   .exp-wrap { display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start; }
   @media (max-width:1024px){ .exp-wrap { grid-template-columns:1fr; } }
-  .exp-tree-panel { background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; position:sticky; top:12px; max-height:calc(100vh - 28px); display:flex; flex-direction:column; }
+  .exp-tree-panel { background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; position:sticky; top:12px; max-height:calc(100vh - 28px); display:flex; flex-direction:column; min-width:0; }
+  @media (max-width:600px){
+    /* Mobile: Grid-Spalte darf nicht an nowrap-Badges/Baumzeilen anwachsen —
+       der Baum scrollt intern (.tree-scroll); kein horizontaler Seiten-Scroll. */
+    .exp-tree-panel { min-width:0; max-width:100%; }
+    .exp-main { overflow-x:auto; }
+    #gridbox, #overview { overflow-x:auto; }
+    table.data td, table.data th { overflow-wrap:anywhere; }
+  }
   .tree-hdr { font-weight:700; color:var(--bw-blue); font-size:13.5px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
   .tree-filter { width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; font-size:12.5px; margin-bottom:8px; font-family:inherit; }
   .tree-scroll { overflow:auto; flex:1; padding-right:4px; }

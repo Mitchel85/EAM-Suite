@@ -1433,10 +1433,70 @@ function openMergeReport() {
   openModal('🗂️ Fusionsbericht', h.join(''), '<button class="btn-sm" onclick="modalClose()">Schließen</button>');
 }
 
+/* „✕ Auflösen“: Landkarte zurücknehmen und das erste Modell wieder als
+   Einzelmodell anzeigen (README: „nimmt die Fusion zurück“).
+   Sichere Umsetzung: kompletter Neuaufbau aus der Datenbank des ersten
+   Modells (MODEL_DBS[1]) — identischer Pfad wie ein frisches Einzelladen.
+   Vorgemerkte Änderungen (ggf. aus mehreren Dateien) werden dabei verworfen;
+   existieren welche, wird vorher nachgefragt. */
 function exitMultiMode() {
   if (!MULTI_MODE) { toast('Es ist nur ein Modell geladen.'); return; }
-  var first = MODEL_FILES.length ? MODEL_FILES[0].name : MODELLNAME;
-  alert('Um nur das erste Modell (' + shortFileName(first) + ') zu behalten:\n\nBitte die Seite neu laden und die gewünschte Datei einzeln öffnen.');
+  var first = MODEL_FILES.length ? MODEL_FILES[0] : null;
+  var db1 = (first && MODEL_DBS[first.n]) ? MODEL_DBS[first.n] : (MODEL_DBS[1] || MODEL_DB);
+  if (!db1) { toast('Es ist kein erstes Modell verfügbar — bitte die Seite neu laden.'); return; }
+  var pending = 0;
+  try { if (typeof EDIT !== 'undefined' && EDIT._internal && EDIT._internal.count) pending = EDIT._internal.count(); } catch (e) { }
+
+  if (pending > 0) {
+    if (!confirm('Zusammenführung auflösen?\n\nDie Landkarte wird entfernt — nur „' + shortFileName(first ? first.name : '') + '“ bleibt als Einzelmodell geladen.\n\n⚠ Dabei gehen ' + pending + ' vorgemerkte Änderung(en) verloren.')) return;
+  }
+
+  var name1 = first ? first.name : (MODELLNAME || 'Modell 1');
+  SINGLE = true;
+  MULTI_MODE = false;
+  DB = db1;
+  MODELLNAME = name1;
+  G.built = false;
+  resetModelData();                       /* leert OBJS/PKG/DIAGS/…, MODEL_N=0, MULTI_SRC, MERGE_CANDS, SEM-Index */
+  MODEL_DBS = {}; MODEL_DBS[1] = DB;
+  MODEL_DB = DB;
+  buildModel();
+  MODEL_OBJS = OBJS; MODEL_PKG = PKG; MODEL_DIAGS = DIAGS; MODEL_TAGS = TAGS;
+
+  /* Edit-Modul: nur noch Quelle 1; Vormerkungen (u. a. für Datei 2) verwerfen */
+  if (typeof EDIT !== 'undefined') {
+    if (first && first.bytes && EDIT.setSource) { EDIT.setSource(first.bytes, name1, 1); }
+    else if (EDIT.clearAll) { try { EDIT.clearAll(true); } catch (e2) { } }
+    if (EDIT.setSourceCount) EDIT.setSourceCount(1);
+  }
+
+  var nPkg = Object.keys(PKG).length, nDiag = DIAGS.length, nObj = Object.keys(OBJS).length, nCon = CONS.length;
+  el('upload').style.display = 'none';
+  el('workspace').style.display = 'block';
+  el('modellname').textContent = name1;
+  renderModelStats(nPkg, nDiag, nObj, nCon);
+  renderWarnbar();
+  computeStats();
+  renderQuickBar();
+  renderGrid();
+  renderDiagsCatalog();
+  if (el('cnt-path')) el('cnt-path').textContent = fmt(nCon);
+  PATH = { start: null, end: null, directed: false, maxHops: 5, mode: 'shortest', last: null, selPath: 0, ctx: false };
+  PATH_ADJ = null; PATH_COMP = null;
+  pathRenderTab();
+  renderMergeBar();                       /* versteckt die Landkarten-Leiste (MULTI_MODE=false) */
+  var lab = el('multilabel'); if (lab) lab.className = 'mmode';
+  var chk = el('multichk'); if (chk) chk.checked = false;
+  var startPkg = PKG_ROOTS.length ? PKG_ROOTS[0].id : null;
+  if (startPkg != null) {
+    PKG_OPEN[startPkg] = true;
+    for (var j = 0; j < PKG_ROOTS[0].children.length; j++) PKG_OPEN[PKG_ROOTS[0].children[j].id] = true;
+  }
+  renderPkgTree();
+  showView('explorer');
+  if (startPkg != null) openPackage(startPkg, true);
+  toast('✅ Landkarte aufgelöst: „' + shortFileName(name1) + '“ ist wieder das einzige geladene Modell.'
+    + (pending > 0 ? ' Die ' + pending + ' vorgemerkte(n) Änderung(en) wurden verworfen.' : ''));
 }
 
 /* Umschalter Einzel-/Mehrfach-Modus */

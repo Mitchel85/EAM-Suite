@@ -167,6 +167,88 @@ def test_mehrfachmodus_keine_doppelten_roots(page):
     assert "MASC" in names and "Zweitarchitektur" in names
 
 
+def test_aufloesen_nimmt_fusion_zurueck(page):
+    """Regression B1: „✕ Auflösen“ löst die Landkarte auf und zeigt das erste
+    Modell wieder als Einzelmodell (statt nur eines Alert-Hinweises)."""
+    _load(page, [MASC, ZWEIT])
+    page.wait_for_function(
+        "() => typeof MODEL_FILES !== 'undefined' && MODEL_FILES.length === 2",
+        timeout=45000,
+    )
+    _loaded(page)
+    page.wait_for_function("() => MULTI_MODE === true", timeout=15000)
+    assert page.evaluate("() => Object.keys(OBJS).length") > 1655  # Landkarte enthält beide Modelle
+
+    # Eine Vormerkung anlegen, damit auch der Bestätigungsdialog geprüft wird
+    oid = page.evaluate(
+        "() => Object.keys(OBJS).find(k => OBJS[k].st && !/^proxyconnector$/i.test(OBJS[k].st))"
+    )
+    page.evaluate("oid => EDIT.elEdit(oid)", oid)
+    name = page.locator("#ee-name")
+    name.wait_for(state="visible", timeout=10000)
+    name.fill(name.input_value() + " (Auflösen-Test)")
+    page.locator("#editmodal button", has_text="vormerken").first.click()
+    assert page.evaluate("() => EDIT._internal.count()") == 1
+
+    page.on("dialog", lambda d: d.accept())
+    page.locator("#mergebar button", has_text="Auflösen").click()
+    page.wait_for_function("() => MULTI_MODE === false", timeout=20000)
+    page.wait_for_function(
+        "() => typeof MODEL_FILES !== 'undefined' && MODEL_FILES.length === 0",
+        timeout=20000,
+    )
+
+    # Nur noch MASC: 2 Wurzelpakete, Kennzahlen des Einzelmodells
+    assert page.evaluate("() => PKG_ROOTS.length") == 2
+    assert page.evaluate("() => Object.keys(OBJS).length") == 1655
+    assert page.evaluate("() => CONS.length") == 1747
+    bar = page.locator("#modellbar").inner_text()
+    assert PKG_COUNT in bar
+    assert DIAG_COUNT in bar
+    assert EL_COUNT in bar
+    # Landkarten-Leiste verschwunden, Umschalter zurückgesetzt, Vormerkungen verworfen
+    assert page.evaluate(
+        "() => getComputedStyle(document.getElementById('mergebar')).display"
+    ) == "none"
+    assert page.evaluate("() => SINGLE") is True
+    assert page.evaluate("() => EDIT._internal.count()") == 0
+    assert "Landkarte aufgelöst" in page.locator("#mttoast").inner_text()
+
+
+def test_mobile_390_kein_horizontaler_overflow(browser):
+    """Regression B2: Explorer und Referenz-Grid erzeugen bei 390 px Viewport
+    keinen horizontalen Seiten-Scroll (Baum/Tabellen scrollen intern)."""
+    ctx = browser.new_context(viewport={"width": 390, "height": 844})
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(URL)
+    pg.wait_for_timeout(600)
+    _load(pg, [MASC])
+    pg.wait_for_function(
+        "() => typeof PKG !== 'undefined' && Object.keys(PKG).length > 0",
+        timeout=45000,
+    )
+    pg.wait_for_timeout(500)
+
+    sw_explorer = pg.evaluate("() => document.documentElement.scrollWidth")
+    assert sw_explorer <= 390, f"Explorer: horizontaler Overflow (scrollWidth={sw_explorer})"
+    panel_box = pg.locator(".exp-tree-panel").bounding_box()
+    assert panel_box is not None
+    assert panel_box["x"] >= -0.5, f"Baum-Panel ragt links heraus: {panel_box}"
+    assert panel_box["x"] + panel_box["width"] <= 390.5, f"Baum-Panel zu breit: {panel_box}"
+    # Controls im Baumkopf sichtbar (＋ Alle / －)
+    assert pg.locator(".tree-hdr button", has_text="Alle").is_visible()
+
+    pg.evaluate("() => showView('grid')")
+    pg.wait_for_timeout(500)
+    sw_grid = pg.evaluate("() => document.documentElement.scrollWidth")
+    assert sw_grid <= 390, f"Referenz-Grid: horizontaler Overflow (scrollWidth={sw_grid})"
+
+    assert errors == [], f"JS-Fehler mobil: {errors}"
+    ctx.close()
+
+
 def test_dunkelmodus(browser):
     """Dunkelmodus: dunkler Hintergrund bei Systemeinstellung 'dark'."""
     ctx = browser.new_context(

@@ -736,7 +736,10 @@ var EDIT = (function () {
         var tm = /FQName=([^;]*);/.exec(s0(tpl[0].Description));
         if (tm && tm[1]) fqName = tm[1];
       }
-      var insDesc = '@STEREO;Name=' + newSt + ';' + (fqName ? 'FQName=' + fqName + ';' : '') + '@ENDSTEREO;';
+      /* Neuanlage: FQName immer mitschreiben (EA-Konvention). Vorzug aus
+         vorhandener Vorlage mit gleichem Stereotyp (Profil-Information),
+         sonst der Stereotyp selbst (unprofiliert, wie EA bei neuen Werten). */
+      var insDesc = '@STEREO;Name=' + newSt + ';FQName=' + (fqName || newSt) + ';@ENDSTEREO;';
       db.run('INSERT INTO t_xref (XrefID, Type, Description, Client) VALUES (?,?,?,?)', [newGuid(), type, insDesc, guid]);
     }
   }
