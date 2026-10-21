@@ -110,6 +110,7 @@ Als **Testversion** veröffentlicht. Interessant sind besonders Modelle mit Fehl
 ## Rechtliches
 
 * **Keine Verbindung zu Sparx Systems.** Unabhängiges, privat erstelltes Projekt — nicht freigegeben oder zertifiziert. Die Bezeichnungen „Sparx Systems", „Enterprise Architect" und „EA" werden ausschließlich beschreibend verwendet. Dieses Projekt ist nicht mit der Sparx Systems Pty Ltd verbunden, wird von dieser nicht unterstützt und nicht gesponsert.
+* **Marken:** „Sparx Systems", „Enterprise Architect" und „EA" sind Marken oder eingetragene Marken der Sparx Systems Pty Ltd. Alle weiteren Marken sind Eigentum ihrer jeweiligen Inhaber. Es besteht keine Verbindung zu Sparx Systems Pty Ltd.; das Werkzeug ist von dort nicht freigegeben oder zertifiziert.
 * **Direkter Datenbankzugriff:** liest und schreibt `.qea`-Dateien direkt als SQLite; Original wird **nie** überschrieben (neue Datei `*_bearbeitet_JJJJMMTT-HHMM.qea`).
 * **Support-Hinweis:** Direkter Schreibzugriff ist von Sparx Systems nicht freigegeben; Auswirkungen auf Wartungs-/Supportverträge möglich. Stets mit Arbeitskopie arbeiten und das Ergebnis in Enterprise Architect prüfen.
 * **Kein EA-Bestandteil:** Es werden keine Dateien, Bibliotheken, Lizenzschlüssel oder Programmbestandteile von Sparx Systems mitgeliefert oder umgangen.
