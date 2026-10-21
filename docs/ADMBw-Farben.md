@@ -2,7 +2,9 @@
 
 Die Knoten- und Elementfarben des Tools folgen der offiziellen Farbgebung des **NATO Architecture Framework v4** und deren Umsetzung im **Architekturdatenmodell der Bundeswehr (ADMBw)**. Dieses Dokument belegt die verwendeten Farbwerte anhand der primären Quellen.
 
-## Verwendete Palette (ADMBw-Umsetzung in Sparx EA)
+## Verwendete Palette (ADMBw-Umsetzung)
+
+Umgesetzt in Sparx Systems Enterprise Architect.
 
 | Architekturbereich | Schichtfarbe (Rand/Header) | Elementfüllung (hell) | Verwendung im Tool |
 |---|---|---|---|
