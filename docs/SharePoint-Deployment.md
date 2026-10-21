@@ -43,7 +43,7 @@ Zwei Dateien stehen zur Verfügung (identischer Inhalt, bis auf den Kopf):
 
 1. **Kopie** des Modells verwenden (nicht das Referenzmodell direkt).
 2. Eine kleine Änderung vormerken und speichern.
-3. Die erzeugte `.qea` in **Sparx EA öffnen** und prüfen.
+3. Die erzeugte `.qea` in Sparx EA öffnen und prüfen.
 4. Erst danach mit echten Änderungen arbeiten.
 
 ### Prüfliste nach dem Upload

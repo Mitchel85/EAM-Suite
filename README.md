@@ -4,9 +4,9 @@
 
 **▶️ Online ausprobieren (ohne Installation):** [mitchel85.github.io/EAM-Suite](https://mitchel85.github.io/EAM-Suite/) — lädt direkt im Browser, 100 % lokal.
 
-**Sparx-EA-Architekturen im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
+**Architekturmodelle im `.qea`-Format im Browser bearbeiten — 100 % lokal, ohne KI, ohne Installation, ohne Server.**
 
-Einzeldatei-Tool (HTML & ASPX) für Architekturmodelle im SQLite-Format (`.qea` / `.eapx` / `.qeax`): Elemente, Pakete, Sichten, Beziehungen und Tagged Values **ändern**, **anlegen** und **entfernen**. Geschrieben wird stets in eine **neue `.qea`-Datei** — das Original bleibt unangetastet.
+Einzeldatei-Tool (HTML & ASPX) für Architekturmodelle im SQLite-Format (`.qea` / `.qeax`): Elemente, Pakete, Sichten, Beziehungen und Tagged Values **ändern**, **anlegen** und **entfernen**. Geschrieben wird stets in eine **neue `.qea`-Datei** — das Original bleibt unangetastet.
 
 Ab **v6.0**: **mehrere Architekturen gleichzeitig laden** und zu einer Landkarte verschmelzen (Kriterien: **GUID** / **Name** / **Alias**). Dadurch werden modellübergreifende Zusammenhänge sichtbar.
 
@@ -109,7 +109,7 @@ Als **Testversion** veröffentlicht. Interessant sind besonders Modelle mit Fehl
 
 ## Rechtliches
 
-* **Keine Verbindung zu Sparx Systems.** Unabhängiges, privat erstelltes Projekt — nicht freigegeben oder zertifiziert. Die Bezeichnungen „Sparx Systems", „Enterprise Architect" und „EA" werden ausschließlich **beschreibend** verwendet.
+* **Keine Verbindung zu Sparx Systems.** Unabhängiges, privat erstelltes Projekt — nicht freigegeben oder zertifiziert. Die Bezeichnungen „Sparx Systems", „Enterprise Architect" und „EA" werden ausschließlich beschreibend verwendet. Dieses Projekt ist nicht mit der Sparx Systems Pty Ltd verbunden, wird von dieser nicht unterstützt und nicht gesponsert.
 * **Direkter Datenbankzugriff:** liest und schreibt `.qea`-Dateien direkt als SQLite; Original wird **nie** überschrieben (neue Datei `*_bearbeitet_JJJJMMTT-HHMM.qea`).
 * **Support-Hinweis:** Direkter Schreibzugriff ist von Sparx Systems nicht freigegeben; Auswirkungen auf Wartungs-/Supportverträge möglich. Stets mit Arbeitskopie arbeiten und das Ergebnis in Enterprise Architect prüfen.
 * **Kein EA-Bestandteil:** Es werden keine Dateien, Bibliotheken, Lizenzschlüssel oder Programmbestandteile von Sparx Systems mitgeliefert oder umgangen.

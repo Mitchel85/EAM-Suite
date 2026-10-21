@@ -29,7 +29,7 @@ Unter **„⚙️ Erweitert"** ankreuzen, wonach gleiche Elemente erkannt werden
 **Wichtig:**
 - Das **Original wird nie überschrieben**
 - Bei mehreren Dateien bekommt **jede Quelle** ihre eigene neue Datei
-- Ergebnis einmal in **Sparx EA** öffnen und prüfen; mit einer **Kopie** arbeiten
+- Ergebnis einmal in Sparx EA öffnen und prüfen; mit einer **Kopie** arbeiten
 
 ---
 

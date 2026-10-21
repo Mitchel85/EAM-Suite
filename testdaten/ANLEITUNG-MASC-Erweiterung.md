@@ -140,4 +140,4 @@ Architekturgrenze.
 - Nachladbar über `tools/build_erweiterung_weltraumlage.py`.
 - Hinweis der Suite: In der Erweiterung fehlt die Tabelle `t_diagramlinks`; die Suite meldet
   das als Hinweis, die Auswertung läuft vollständig. Für eine produktive Nutzung in Sparx EA
-  ergänzt Sparx diese Tabelle beim ersten Öffnen und Speichern selbst.
+  ergänzt Sparx Systems diese Tabelle beim ersten Öffnen und Speichern selbst.
