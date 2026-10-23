@@ -1870,6 +1870,90 @@ function pickFiles(multi) {
   input.click();
 }
 
+/* ---------- Experimentell: MASC-Architektur laden ----------
+   Nur für die lokale Abwandlung. Lädt die MASC-Architektur per fetch.
+   Überschreibbar per Query-Parameter ?testarch=<url> (z. B. für Proxys/Tests). */
+var TEST_ARCH_URL = 'https://teams.ecm.bundeswehr.org/arbeitsbereiche/A5605007842/Freigegebene%20Dokumente/Kommunikation%20(extern)/Ausbildung/MASC/MASC_v102026.qea';
+var TEST_ARCH_NAME = 'MASC_v102026.qea';
+
+/* Kandidaten in dieser Reihenfolge:
+   1. Datei liegt NEBEN der HTML (gleiche SharePoint-/Teams-Bibliothek) -> kein CORS
+   2. ?testarch=<url> als Override (Proxy, Testserver)
+   3. GitLab-Roh-URL (scheitert meist an CORS, wird trotzdem versucht) */
+function testArchCandidates() {
+  var list = [];
+  try { list.push({ url: new URL(TEST_ARCH_NAME, window.location.href).href, label: 'neben der HTML-Datei' }); } catch (e) {}
+  try {
+    var q = new URLSearchParams(window.location.search).get('testarch');
+    if (q) list.push({ url: q, label: 'Override' });
+  } catch (e) {}
+  list.push({ url: TEST_ARCH_URL, label: 'GitLab' });
+  return list;
+}
+
+function testArchHint(show, detail) {
+  var box = el('testarchhint');
+  if (!box) return;
+  if (!show) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  box.innerHTML = '<b>Direktzugriff blockiert.</b> ' + esc(detail || '')
+    + ' Der Browser darf die Datei nicht aus dem GitLab lesen (CORS).<br>'
+    + '<b>Zwei Wege, die sicher funktionieren:</b><br>'
+    + '1. <a href="' + esc(TEST_ARCH_URL) + '" target="_blank" rel="noopener"><b>MASC_v102026.qea herunterladen</b></a>, dann die Datei hierher ziehen oder über „Eine Architektur laden" öffnen.<br>'
+    + '2. Die Datei <b>neben diese HTML-Datei</b> in dieselbe Bibliothek legen — dann lädt der Button sie ohne Umweg.';
+}
+
+function loadMASCArchitektur() {
+  var cands = testArchCandidates();
+  showLoadOverlay('🧪 MASC_v102026.qea wird geladen …');
+  showUpHint('🧪 Lade MASC-Architektur …');
+  testArchHint(false);
+
+  function versuch(i) {
+    if (i >= cands.length) return Promise.reject(new Error('direkter Zugriff nicht erlaubt'));
+    var c = cands[i];
+    return fetch(c.url, { credentials: c.label === 'GitLab' ? 'include' : 'same-origin', mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer().then(function (b) { return { buf: b, src: c.label }; });
+      })
+      .catch(function (e) { return versuch(i + 1); });
+  }
+
+  versuch(0)
+    .then(function (res) {
+      /* SharePoint liefert bei falschem Pfad oder fehlender Freigabe eine HTML-Seite
+         mit Status 200. Ohne diese Prüfung käme nur „keine Sparx-EA-Struktur". */
+      var head = '';
+      try { head = new TextDecoder('latin1').decode(new Uint8Array(res.buf, 0, 16)); } catch (e) {}
+      if (head.indexOf('SQLite format 3') !== 0) {
+        hideLoadOverlay();
+        showUpHint('');
+        testArchHint(true, 'Die URL liefert keine QEA-Datei (kein SQLite-Kopf).');
+        toast('⚠ Keine QEA-Datei an der URL');
+        var m = 'Die URL liefert keine QEA-Datei, sondern vermutlich eine HTML- oder Login-Seite.\n\n'
+          + 'Quelle: ' + res.src + '\n'
+          + 'Erste Bytes: ' + JSON.stringify(head.slice(0, 16)) + '\n\n'
+          + 'Zu prüfen: Freigabe der Datei, Pfad und ob ein direkter Download erlaubt ist.';
+        setTimeout(function () { alert(m); }, 150);
+        return;
+      }
+      SINGLE = true;
+      if (MULTI_MODE && typeof exitMultiMode === 'function') { try { exitMultiMode(); } catch (e) {} }
+      loadQea(res.buf, 'MASC_v102026 (' + res.src + ')');
+      hideLoadOverlay();
+      showUpHint('');
+      toast('🧪 MASC geladen — Quelle: ' + res.src);
+    })
+    .catch(function (e) {
+      hideLoadOverlay();
+      showUpHint('');
+      testArchHint(true, e.message);
+      toast('⚠ MASC-Architektur: ' + e.message);
+      try { window.open(TEST_ARCH_URL, '_blank'); } catch (e2) {}
+    });
+}
+
 /* Fortschritt/Hinweis im Upload-Bereich anzeigen (wird nach dem Laden ausgeblendet) */
 function showUpHint(html) {
   var h = el('uphint');

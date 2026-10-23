@@ -18,7 +18,7 @@ Ab **v6.0**: **mehrere Architekturen gleichzeitig laden** und zu einer Landkarte
 
 ## Schnellstart
 
-1. **Öffnen** — `dist/Architektur_Mate.html` herunterladen (Button *Raw* → *Datei speichern*) und per **Doppelklick** im Browser öffnen (Edge / Chrome / Firefox).
+1. **Öffnen** — `dist/EAM_Suite.html` herunterladen (Button *Raw* → *Datei speichern*) und per **Doppelklick** im Browser öffnen (Edge / Chrome / Firefox).
 2. **Laden** — **„📄 Eine Architektur laden"** (eine Datei) oder **„🗂️ Mehrere verschmelzen"** (zwei oder mehr zu einer Landkarte). Datei(en) aufziehen oder anklicken.
 3. **(Nur mehrere) Kriterien wählen** — unter **„⚙️ Erweitert"**: Standard ist nur **„Über GUID"** (stabilste Erkennung). „Über den Namen" / „Über den Alias" sind experimentell. Danach erscheint ein **Prüf-Dialog** zum Einzelabwählen, dann **„✔ Ausgewählte zusammenlegen"**.
 4. **Erkunden** — links der Paket-/Sichten-Baum, oben die **Sofort-Suche**. Steckbrief zeigt bei verschmolzenen Elementen alle Vorkommen (mit Sprung-Button); Verbindungen über die Dateigrenze sind mit **„Modellgrenze"** markiert.
@@ -49,8 +49,8 @@ Ab **v6.0**: **mehrere Architekturen gleichzeitig laden** und zu einer Landkarte
 
 | Datei | Verwendung |
 |---|---|
-| `dist/Architektur_Mate.html` | Lokale Nutzung (Doppelklick) oder SharePoint-Dokumentbibliothek |
-| `dist/Architektur_Mate.aspx` | SharePoint-/IIS-Bibliothek (beginnt direkt mit `<!DOCTYPE html>`, UTF-8 mit BOM) |
+| `dist/EAM_Suite.html` | Lokale Nutzung (Doppelklick) oder SharePoint-Dokumentbibliothek |
+| `dist/EAM_Suite.aspx` | SharePoint-/IIS-Bibliothek (beginnt direkt mit `<!DOCTYPE html>`, UTF-8 mit BOM) |
 
 ---
 

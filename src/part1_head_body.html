@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EAM Suite — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
+<title>EAM Suite (EXPERIMENTELL) — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
 <style>
   :root {
     --bw-blue:#004471; --bw-dark:#0A2E4D; --bw-mid:#5A7184; --bw-light:#C6D6DE;
@@ -33,6 +33,10 @@
   .upbtn.one:hover { background:#EAF2F8; }
   .upbtn.many { background:var(--bw-blue); color:#fff; }
   .upbtn.many:hover { filter:brightness(1.12); }
+  .upbtn.test { background:#FFF7ED; color:#9A3412; border-color:#C2410C; border-style:dashed; }
+  .upbtn.test:hover { background:#FFEDD5; }
+  .testarch-hint { display:none; max-width:720px; margin:12px auto 0; padding:11px 14px; text-align:left; font-size:13px; line-height:1.5; background:#FFF7ED; border:1px solid #C2410C; border-left-width:4px; border-radius:6px; color:#7C2D12; }
+  .testarch-hint a { color:#9A3412; }
   .up-hint { font-size:12px; color:var(--bw-mid); margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
   .up-hint b { color:var(--bw-blue); }
 
@@ -491,7 +495,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 EAM Suite <span class="badge-v">v8.4 · 100 % lokal</span></h1>
+      <h1>🤝 EAM Suite (EXPERIMENTELL) <span class="badge-v">v8.4 · 100 % lokal</span></h1>
       <p>Erkunden · analysieren · bearbeiten — ohne KI, ohne Installation.</p>
     </div>
   
@@ -511,7 +515,10 @@
       <div class="up-actions">
         <button type="button" class="upbtn one" onclick="pickFiles(false)">📄 Eine Architektur laden</button>
         <button type="button" class="upbtn many" onclick="pickFiles(true)">🗂️ Mehrere verschmelzen</button>
+        <button type="button" class="upbtn test" onclick="loadMASCArchitektur()" title="Lädt die MASC-Architektur (experimentell, nur lokal)">🧪 MASC laden</button>
       </div>
+
+      <div class="testarch-hint" id="testarchhint" style="display:none"></div>
 
       <details class="semwrap-details">
         <summary>⚙️ Erweitert: Kriterien für die Zusammenführung</summary>

@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EAM Suite — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
+<title>EAM Suite (EXPERIMENTELL) — QEA-Architekturen analysieren, erkunden, bearbeiten &amp; exportieren</title>
 <style>
   :root {
     --bw-blue:#004471; --bw-dark:#0A2E4D; --bw-mid:#5A7184; --bw-light:#C6D6DE;
@@ -33,6 +33,10 @@
   .upbtn.one:hover { background:#EAF2F8; }
   .upbtn.many { background:var(--bw-blue); color:#fff; }
   .upbtn.many:hover { filter:brightness(1.12); }
+  .upbtn.test { background:#FFF7ED; color:#9A3412; border-color:#C2410C; border-style:dashed; }
+  .upbtn.test:hover { background:#FFEDD5; }
+  .testarch-hint { display:none; max-width:720px; margin:12px auto 0; padding:11px 14px; text-align:left; font-size:13px; line-height:1.5; background:#FFF7ED; border:1px solid #C2410C; border-left-width:4px; border-radius:6px; color:#7C2D12; }
+  .testarch-hint a { color:#9A3412; }
   .up-hint { font-size:12px; color:var(--bw-mid); margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
   .up-hint b { color:var(--bw-blue); }
 
@@ -491,7 +495,7 @@
 <header>
   <div class="hdr-inner">
     <div>
-      <h1>🤝 EAM Suite <span class="badge-v">v8.4 · 100 % lokal</span></h1>
+      <h1>🤝 EAM Suite (EXPERIMENTELL) <span class="badge-v">v8.4 · 100 % lokal</span></h1>
       <p>Erkunden · analysieren · bearbeiten — ohne KI, ohne Installation.</p>
     </div>
   
@@ -511,7 +515,10 @@
       <div class="up-actions">
         <button type="button" class="upbtn one" onclick="pickFiles(false)">📄 Eine Architektur laden</button>
         <button type="button" class="upbtn many" onclick="pickFiles(true)">🗂️ Mehrere verschmelzen</button>
+        <button type="button" class="upbtn test" onclick="loadMASCArchitektur()" title="Lädt die MASC-Architektur (experimentell, nur lokal)">🧪 MASC laden</button>
       </div>
+
+      <div class="testarch-hint" id="testarchhint" style="display:none"></div>
 
       <details class="semwrap-details">
         <summary>⚙️ Erweitert: Kriterien für die Zusammenführung</summary>
@@ -5662,6 +5669,90 @@ function pickFiles(multi) {
   window.__pickMode = !!multi;
   if (multi && !MULTI_MODE) toggleMultiMode(true);
   input.click();
+}
+
+/* ---------- Experimentell: MASC-Architektur laden ----------
+   Nur für die lokale Abwandlung. Lädt die MASC-Architektur per fetch.
+   Überschreibbar per Query-Parameter ?testarch=<url> (z. B. für Proxys/Tests). */
+var TEST_ARCH_URL = 'https://teams.ecm.bundeswehr.org/arbeitsbereiche/A5605007842/Freigegebene%20Dokumente/Kommunikation%20(extern)/Ausbildung/MASC/MASC_v102026.qea';
+var TEST_ARCH_NAME = 'MASC_v102026.qea';
+
+/* Kandidaten in dieser Reihenfolge:
+   1. Datei liegt NEBEN der HTML (gleiche SharePoint-/Teams-Bibliothek) -> kein CORS
+   2. ?testarch=<url> als Override (Proxy, Testserver)
+   3. GitLab-Roh-URL (scheitert meist an CORS, wird trotzdem versucht) */
+function testArchCandidates() {
+  var list = [];
+  try { list.push({ url: new URL(TEST_ARCH_NAME, window.location.href).href, label: 'neben der HTML-Datei' }); } catch (e) {}
+  try {
+    var q = new URLSearchParams(window.location.search).get('testarch');
+    if (q) list.push({ url: q, label: 'Override' });
+  } catch (e) {}
+  list.push({ url: TEST_ARCH_URL, label: 'GitLab' });
+  return list;
+}
+
+function testArchHint(show, detail) {
+  var box = el('testarchhint');
+  if (!box) return;
+  if (!show) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  box.innerHTML = '<b>Direktzugriff blockiert.</b> ' + esc(detail || '')
+    + ' Der Browser darf die Datei nicht aus dem GitLab lesen (CORS).<br>'
+    + '<b>Zwei Wege, die sicher funktionieren:</b><br>'
+    + '1. <a href="' + esc(TEST_ARCH_URL) + '" target="_blank" rel="noopener"><b>MASC_v102026.qea herunterladen</b></a>, dann die Datei hierher ziehen oder über „Eine Architektur laden" öffnen.<br>'
+    + '2. Die Datei <b>neben diese HTML-Datei</b> in dieselbe Bibliothek legen — dann lädt der Button sie ohne Umweg.';
+}
+
+function loadMASCArchitektur() {
+  var cands = testArchCandidates();
+  showLoadOverlay('🧪 MASC_v102026.qea wird geladen …');
+  showUpHint('🧪 Lade MASC-Architektur …');
+  testArchHint(false);
+
+  function versuch(i) {
+    if (i >= cands.length) return Promise.reject(new Error('direkter Zugriff nicht erlaubt'));
+    var c = cands[i];
+    return fetch(c.url, { credentials: c.label === 'GitLab' ? 'include' : 'same-origin', mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer().then(function (b) { return { buf: b, src: c.label }; });
+      })
+      .catch(function (e) { return versuch(i + 1); });
+  }
+
+  versuch(0)
+    .then(function (res) {
+      /* SharePoint liefert bei falschem Pfad oder fehlender Freigabe eine HTML-Seite
+         mit Status 200. Ohne diese Prüfung käme nur „keine Sparx-EA-Struktur". */
+      var head = '';
+      try { head = new TextDecoder('latin1').decode(new Uint8Array(res.buf, 0, 16)); } catch (e) {}
+      if (head.indexOf('SQLite format 3') !== 0) {
+        hideLoadOverlay();
+        showUpHint('');
+        testArchHint(true, 'Die URL liefert keine QEA-Datei (kein SQLite-Kopf).');
+        toast('⚠ Keine QEA-Datei an der URL');
+        var m = 'Die URL liefert keine QEA-Datei, sondern vermutlich eine HTML- oder Login-Seite.\n\n'
+          + 'Quelle: ' + res.src + '\n'
+          + 'Erste Bytes: ' + JSON.stringify(head.slice(0, 16)) + '\n\n'
+          + 'Zu prüfen: Freigabe der Datei, Pfad und ob ein direkter Download erlaubt ist.';
+        setTimeout(function () { alert(m); }, 150);
+        return;
+      }
+      SINGLE = true;
+      if (MULTI_MODE && typeof exitMultiMode === 'function') { try { exitMultiMode(); } catch (e) {} }
+      loadQea(res.buf, 'MASC_v102026 (' + res.src + ')');
+      hideLoadOverlay();
+      showUpHint('');
+      toast('🧪 MASC geladen — Quelle: ' + res.src);
+    })
+    .catch(function (e) {
+      hideLoadOverlay();
+      showUpHint('');
+      testArchHint(true, e.message);
+      toast('⚠ MASC-Architektur: ' + e.message);
+      try { window.open(TEST_ARCH_URL, '_blank'); } catch (e2) {}
+    });
 }
 
 /* Fortschritt/Hinweis im Upload-Bereich anzeigen (wird nach dem Laden ausgeblendet) */

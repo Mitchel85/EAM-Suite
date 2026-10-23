@@ -7,7 +7,7 @@
 ## In 4 Schritten
 
 ### 1 · Öffnen & Laden
-`dist/Architektur_Mate.html` herunterladen, per Doppelklick im Browser öffnen. Dann:
+`dist/EAM_Suite.html` herunterladen, per Doppelklick im Browser öffnen. Dann:
 - **„📄 Eine Architektur laden"** — eine Datei
 - **„🗂️ Mehrere verschmelzen"** — zwei oder mehr zu **einer** Landkarte
 

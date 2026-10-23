@@ -32,7 +32,7 @@ korrekt geöffnet werden.
 ## 2. Anleitung — Verbindung über zwei Architekturen
 
 **Werkzeug:** Architektur Mate — EAM-Suite
-`https://mitchel85.github.io/EAM-Suite/Architektur_Mate.html`
+`https://mitchel85.github.io/EAM-Suite/EAM_Suite.html`
 
 ### Schritt 1 — Mehrfachmodus vorbereiten
 1. Seite öffnen.

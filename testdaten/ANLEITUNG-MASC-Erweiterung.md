@@ -60,7 +60,7 @@ Die drei Fettdruck-Zeilen sind die Übergänge in die Musterarchitektur.
 
 ## 3. Ablauf (ca. 2 Minuten)
 
-**Werkzeug:** `https://mitchel85.github.io/EAM-Suite/Architektur_Mate.html`
+**Werkzeug:** `https://mitchel85.github.io/EAM-Suite/EAM_Suite.html`
 
 ### Schritt 1 — Mehrfachmodus
 1. Startbildschirm → **🗂️ „Mehrere verschmelzen"** anklicken.

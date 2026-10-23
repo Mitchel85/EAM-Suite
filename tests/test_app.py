@@ -1,7 +1,7 @@
 """End-to-End-Tests für Architektur Mate.
 
 Playwright steuert einen echten Chromium-Browser (headless) und testet die
-gebaute Einzeldatei dist/Architektur_Mate.html gegen die mitgelieferten
+gebaute Einzeldatei dist/EAM_Suite.html gegen die mitgelieferten
 Testarchitekturen in tests/fixtures/.
 
 Lokal ausführen:
@@ -19,7 +19,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DIST = ROOT / "dist" / "Architektur_Mate.html"
+DIST = ROOT / "dist" / "EAM_Suite.html"
 FIX = ROOT / "tests" / "fixtures"
 MASC = FIX / "Musterarchitektur_MASC.qea"
 ZWEIT = FIX / "Zweitarchitektur.qea"
@@ -81,9 +81,11 @@ def pytest_runtest_makereport(item, call):
 
 
 def test_startbereich_aufgeraeumt(page):
-    """Startbereich: Upload sichtbar, 2 klare Buttons, Kriterien eingeklappt."""
+    """Startbereich: Upload sichtbar, klare Buttons, Kriterien eingeklappt."""
     assert page.locator("#upload").is_visible()
-    btns = page.locator(".upbtn")
+    # Die beiden Hauptknoepfe; der experimentelle MASC-Knopf (Klasse
+    # "upbtn test") ist zusaetzlich vorhanden und wird hier nicht mitgezaehlt.
+    btns = page.locator(".upbtn:not(.test)")
     assert btns.count() == 2
     texts = [btns.nth(i).inner_text() for i in range(2)]
     assert "Eine Architektur laden" in texts[0]

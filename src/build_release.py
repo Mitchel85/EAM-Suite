@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Baut Architektur_Mate.html und .aspx (v8.0, Standalone-Repo).
+"""Baut EAM_Suite.html und .aspx (v8.0, Standalone-Repo).
 
 Aufbau der Einzeldatei:
   part1_head_body.html
@@ -24,7 +24,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(REPO, "src")
 DIST = os.path.join(REPO, "dist")
 VEND = os.path.join(REPO, "vendor")
-NAME = "Architektur_Mate"
+NAME = "EAM_Suite"
 DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs")
 
 
