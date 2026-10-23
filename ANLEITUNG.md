@@ -1,4 +1,4 @@
-# Architektur Mate — Kurzanleitung
+# EAM Suite — Kurzanleitung
 
 **Ein Satz:** QEA-Architektur(en) im Browser öffnen, verstehen, ändern — und als **neue** Datei speichern. Ohne Installation, alles bleibt lokal.
 

@@ -1,4 +1,4 @@
-# Architektur Mate
+# EAM Suite
 
 [![CI](https://github.com/Mitchel85/EAM-Suite/actions/workflows/ci.yml/badge.svg)](https://github.com/Mitchel85/EAM-Suite/actions/workflows/ci.yml)
 
